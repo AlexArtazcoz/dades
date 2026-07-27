@@ -13,7 +13,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Link as LinkIcon, Pencil } from 'lucide-react';
 import { AttachmentViewer } from '../Attachments/AttachmentViewer';
 import { ReferenciaModal } from './ReferenciaModal';
-import { isImageAttachment, useBlobUrl } from '../Attachments/attachmentUtils';
+import { isImageAttachment, useAttachmentUrl } from '../Attachments/attachmentUtils';
 import { useDadesStore } from '../../stores/dadesStore';
 import { useUIStore } from '../../stores/uiStore';
 import { DEVICE_HAS_HOVER } from '../../utils/interaction';
@@ -50,6 +50,7 @@ function GalleryCard({
   cover,
   subtitle,
   sortable,
+  canEdit,
   onOpen,
   onEdit,
 }: {
@@ -57,6 +58,7 @@ function GalleryCard({
   cover: Attachment | null;
   subtitle: string; // nom del repositori (vistes sector/tot); '' per amagar-lo
   sortable: boolean;
+  canEdit: boolean;
   onOpen: () => void;
   onEdit: () => void;
 }) {
@@ -66,7 +68,7 @@ function GalleryCard({
   });
 
   const isImage = cover ? isImageAttachment(cover) : false;
-  const url = useBlobUrl(cover && isImage ? cover.blob : null);
+  const url = useAttachmentUrl(cover && isImage ? cover : null);
   const domain = domainOf(referencia.url);
   const caption = referencia.title || domain || (cover ? cover.name : 'Sense títol');
 
@@ -157,7 +159,8 @@ function GalleryCard({
         </>
       )}
 
-      {/* Llapis d'edició — obre la fitxa de la referència */}
+      {/* Llapis d'edició — només per a qui cura l'arxiu */}
+      {canEdit && (
       <button
         onClick={e => { e.stopPropagation(); onEdit(); }}
         onPointerDown={e => e.stopPropagation()}
@@ -168,6 +171,7 @@ function GalleryCard({
       >
         <Pencil size={13} />
       </button>
+      )}
 
       {/* Sobre una foto, el títol va en un vel fosc: és l'únic fons que no pot
           ser blanc, perquè la imatge de sota pot ser de qualsevol color. */}
@@ -197,7 +201,7 @@ function GalleryCard({
 
 /* Portada simplificada per al DragOverlay */
 function DragCard({ cover }: { cover: Attachment | null }) {
-  const url = useBlobUrl(cover && isImageAttachment(cover) ? cover.blob : null);
+  const url = useAttachmentUrl(cover && isImageAttachment(cover) ? cover : null);
   return (
     <div
       className="rounded-xl overflow-hidden border-2 shadow-xl bg-[var(--color-surface)]"
@@ -218,7 +222,7 @@ export function Gallery() {
     activeView, attachments, referencies, repositoris,
     loadAttachmentsForView, getVisibleReferencies, getRepositori,
     reorderReferencies, deleteAttachment, renameAttachment,
-    ingestFiles, createReferencia,
+    ingestFiles, createReferencia, readOnly,
   } = useDadesStore();
   const { addToast, sidebarOpen, sidebarClosing } = useUIStore();
 
@@ -281,7 +285,7 @@ export function Gallery() {
     }
   };
 
-  const dropHandlers = {
+  const dropHandlers = readOnly ? {} : {
     onDragOver: (e: React.DragEvent) => {
       if (e.dataTransfer.types.includes('Files')) e.preventDefault();
     },
@@ -309,7 +313,7 @@ export function Gallery() {
   // Cmd+V: imatges del porta-retalls → referències noves; un enllaç de text →
   // referència d'enllaç. Només a la vista de repositori i fora de camps de text.
   useEffect(() => {
-    if (!repoId) return;
+    if (!repoId || readOnly) return;
     const onPaste = (e: ClipboardEvent) => {
       if (editingId || viewerIndex !== null) return;
       const target = e.target instanceof HTMLElement ? e.target : null;
@@ -333,7 +337,7 @@ export function Gallery() {
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repoId, editingId, viewerIndex]);
+  }, [repoId, editingId, viewerIndex, readOnly]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveDragId(null);
@@ -377,7 +381,9 @@ export function Gallery() {
       <main className={sheetClass + ' flex items-center justify-center'} {...dropHandlers}>
         <p className="text-sm text-[var(--color-text-muted)] text-center max-w-[360px]">
           {isRepositoriView
-            ? 'Aquest repositori encara és buit. Arrossega-hi imatges o PDFs, o enganxa\'ls amb Cmd+V (també un enllaç).'
+            ? (readOnly
+                ? 'Aquest repositori encara no té res.'
+                : 'Aquest repositori encara és buit. Arrossega-hi imatges o PDFs, o enganxa\'ls amb Cmd+V (també un enllaç).')
             : 'Encara no hi ha cap referència en aquesta vista.'}
         </p>
         {dragVeil}
@@ -394,6 +400,7 @@ export function Gallery() {
         cover={coverOf(referencia)}
         subtitle={isRepositoriView ? '' : repositori?.name ?? ''}
         sortable={isRepositoriView}
+        canEdit={!readOnly}
         onOpen={() => openCard(referencia)}
         onEdit={() => setEditingId(referencia.id)}
       />
@@ -429,8 +436,8 @@ export function Gallery() {
           index={viewerIndex}
           onIndexChange={setViewerIndex}
           onClose={() => setViewerIndex(null)}
-          onRename={(id, name) => renameAttachment(id, name)}
-          onDelete={id => deleteAttachment(id)}
+          onRename={readOnly ? undefined : (id, name) => renameAttachment(id, name)}
+          onDelete={readOnly ? undefined : id => deleteAttachment(id)}
         />
       )}
 

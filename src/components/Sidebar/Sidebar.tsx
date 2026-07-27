@@ -198,7 +198,7 @@ function RepositoriList({
 }) {
   const {
     activeView, setActiveView, getRepositorisForSector, countReferencies,
-    updateRepositori, deleteRepositori,
+    updateRepositori, deleteRepositori, readOnly,
   } = useDadesStore();
   const { setSidebarOpen, addToast } = useUIStore();
 
@@ -301,18 +301,19 @@ function RepositoriList({
                 className={`script-category-item group ${isActive ? 'is-active' : ''}`}
                 style={{ ['--i' as string]: i + 1, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
                 onClick={e => { e.stopPropagation(); selectView({ mode: 'repositori', id: repositori.id }); }}
-                onDoubleClick={e => {
+                onDoubleClick={readOnly ? undefined : e => {
                   e.stopPropagation();
                   setEditingId(repositori.id);
                   setDraftName(repositori.name);
                 }}
-                title="Doble clic per renombrar"
+                title={readOnly ? repositori.name : 'Doble clic per renombrar'}
               >
                 {repositori.emoji && <span>{repositori.emoji}</span>}
                 <span className="truncate">{repositori.name}</span>
                 {count > 0 && <span className="script-category-count">{count}</span>}
 
-                {/* Edita / esborra — visibles al passar-hi per sobre (sempre en tàctil) */}
+                {/* Edita / esborra — només per a qui cura l'arxiu */}
+                {!readOnly && (
                 <span
                   className="flex items-center gap-1 ml-auto"
                   style={DEVICE_HAS_HOVER ? undefined : { opacity: 1 }}
@@ -332,6 +333,7 @@ function RepositoriList({
                     <X size={13} />
                   </button>
                 </span>
+                )}
               </div>
             );
           })}
@@ -365,7 +367,7 @@ function SectorItem({
   onConfirmDelete: (id: string) => void;
   onCancelDelete: () => void;
 }) {
-  const { activeView, getRepositorisForSector } = useDadesStore();
+  const { activeView, getRepositorisForSector, readOnly } = useDadesStore();
   const [hovered, setHovered] = useState(false);
   const isConfirming = confirmingDeleteId === sector.id;
 
@@ -437,7 +439,8 @@ function SectorItem({
           {sector.name}
         </span>
 
-        {/* Icones de hover: esborra / edita / nou repositori — sempre visibles en tàctil */}
+        {/* Icones de hover: esborra / edita / nou repositori — només curador */}
+        {!readOnly && (
         <div
           className="flex items-center gap-1 flex-shrink-0"
           style={{
@@ -468,6 +471,7 @@ function SectorItem({
             +
           </button>
         </div>
+        )}
       </div>
 
       {/* Repositoris del sector — es despleguen en clicar la fila */}
@@ -489,6 +493,11 @@ export function Sidebar() {
   } = useDadesStore();
 
   const { sidebarOpen, sidebarClosing, setSidebarOpen, addToast, setSettingsModalOpen } = useUIStore();
+  const readOnly = useDadesStore(s => s.readOnly);
+  /* En públic el calaix no ensenya res d'edició. L'engranatge és l'única
+     excepció i només amb #curador a l'adreça: és per on el curador entra el
+     token en un navegador nou, que si no es quedaria tancat a fora. */
+  const showSettings = !readOnly || window.location.hash === '#curador';
 
   const [modalTarget, setModalTarget] = useState<ModalTarget | null>(null);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
@@ -598,20 +607,24 @@ export function Sidebar() {
 
           {/* Icones — absolutes, sempre a 24px de baix */}
           <div style={{ position: 'absolute', bottom: 24, left: 24, display: 'flex', gap: 16, zIndex: 1 }}>
-            <button
-              onClick={() => setModalTarget({ kind: 'create-sector' })}
-              className="sidebar-icon-btn sidebar-icon-plus"
-              title="Nou sector"
-            >
-              <NewSceneIcon size={50} />
-            </button>
-            <button
-              onClick={() => setSettingsModalOpen(true)}
-              className="sidebar-icon-btn sidebar-icon-settings"
-              title="Configuració"
-            >
-              <Config50Icon />
-            </button>
+            {!readOnly && (
+              <button
+                onClick={() => setModalTarget({ kind: 'create-sector' })}
+                className="sidebar-icon-btn sidebar-icon-plus"
+                title="Nou sector"
+              >
+                <NewSceneIcon size={50} />
+              </button>
+            )}
+            {showSettings && (
+              <button
+                onClick={() => setSettingsModalOpen(true)}
+                className="sidebar-icon-btn sidebar-icon-settings"
+                title="Configuració"
+              >
+                <Config50Icon />
+              </button>
+            )}
           </div>
 
         </div>

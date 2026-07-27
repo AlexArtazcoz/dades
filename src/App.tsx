@@ -6,21 +6,29 @@ import { SettingsModal } from './components/SettingsModal';
 import { ToastContainer } from './components/ToastContainer';
 import { useDadesStore } from './stores/dadesStore';
 import { useUIStore } from './stores/uiStore';
-import { initializeDatabase } from './services/db';
+import { getAllSectors, initializeDatabase } from './services/db';
 import { hasBackupConfig, restoreFromGitHub, startAutoBackup, syncWithRemote } from './services/backup';
 
 function App() {
-  const { loadAll, sectors, isLoading } = useDadesStore();
+  const { loadAll, loadPublic, sectors, isLoading, readOnly } = useDadesStore();
   const { addToast, sidebarOpen, setSidebarOpen } = useUIStore();
   const [restoring, setRestoring] = useState(false);
   const [dbInitialized, setDbInitialized] = useState(false);
 
-  // Initialize database and validate schema on mount
+  /* Curador o visitant.
+     No n'hi ha prou amb tenir token: qui ja té sectors en aquest navegador
+     n'és l'amo encara que encara no hagi configurat la còpia. Sense token i
+     sense res guardat, ets algú que ve a mirar l'arxiu. */
   useEffect(() => {
     const init = async () => {
       try {
         await initializeDatabase();
-        setDbInitialized(true);
+        const teDades = (await getAllSectors()).length > 0;
+        if (hasBackupConfig() || teDades) {
+          setDbInitialized(true);   // mode curador: segueix el camí de sempre
+        } else {
+          await loadPublic();       // mode lectura: arxiu publicat a memòria
+        }
       } catch (error) {
         console.error('Failed to initialize database:', error);
         addToast({
@@ -30,7 +38,7 @@ function App() {
       }
     };
     init();
-  }, [addToast]);
+  }, [addToast, loadPublic]);
 
   // Load data after database is initialized
   useEffect(() => {
@@ -107,7 +115,7 @@ function App() {
     }
   };
 
-  if (!dbInitialized || isLoading) {
+  if ((!dbInitialized && !readOnly) || isLoading) {
     return (
       <div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center">
         <div className="text-[var(--color-text-muted)]">{!dbInitialized ? 'Inicialitzant…' : 'Carregant…'}</div>
@@ -131,11 +139,13 @@ function App() {
           <div className="pointer-events-auto w-full max-w-[400px] text-center text-[var(--color-black)]">
             <h1 className="text-2xl font-semibold tracking-tight mb-2">EgoDe</h1>
             <p className="text-sm leading-relaxed text-[var(--color-text-muted)] mb-5">
-              {hasBackupConfig()
+              {readOnly
+                ? 'Encara no hi ha res publicat.'
+                : hasBackupConfig()
                 ? 'Aquest navegador no té cap sector, però hi ha una còpia de seguretat al GitHub.'
                 : 'Base de referències visual. Crea el primer sector des del menú.'}
             </p>
-            {hasBackupConfig() ? (
+            {readOnly ? null : hasBackupConfig() ? (
               <button
                 onClick={handleRestore}
                 disabled={restoring}

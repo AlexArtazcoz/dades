@@ -3,10 +3,10 @@ import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Download, ExternalLink, Trash2, X } from 'lucide-react';
 import {
   canRenderPdf,
-  downloadBlob,
+  downloadAttachment,
   formatBytes,
   isImageAttachment,
-  useBlobUrl,
+  useAttachmentUrl,
 } from './attachmentUtils';
 import type { Attachment } from '../../types';
 
@@ -81,7 +81,7 @@ function ViewerBody({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const renameInputRef = useRef<HTMLInputElement>(null);
 
-  const url = useBlobUrl(current.blob);
+  const url = useAttachmentUrl(current);
   const isImage = isImageAttachment(current);
 
   const go = useCallback(
@@ -162,7 +162,7 @@ function ViewerBody({
         <div className="att-viewer-actions">
           <ToolbarButton
             title="Descarregar"
-            onClick={() => downloadBlob(current.blob, current.name)}
+            onClick={() => downloadAttachment(current)}
           >
             <Download size={16} />
           </ToolbarButton>
@@ -221,7 +221,7 @@ function ViewerBody({
             <span className="att-viewer-fallback-ext">PDF</span>
             <p>Aquest navegador no pot mostrar PDFs incrustats.</p>
             <div className="att-viewer-fallback-actions">
-              <button onClick={() => downloadBlob(current.blob, current.name)}>
+              <button onClick={() => downloadAttachment(current)}>
                 Descarregar
               </button>
               <button onClick={() => url && window.open(url, '_blank', 'noopener,noreferrer')}>
@@ -270,7 +270,7 @@ function StripItem({
   onClick: () => void;
 }) {
   const isImage = isImageAttachment(attachment);
-  const url = useBlobUrl(isImage ? attachment.blob : null);
+  const url = useAttachmentUrl(isImage ? attachment : null);
 
   return (
     <button

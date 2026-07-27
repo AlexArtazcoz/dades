@@ -280,7 +280,11 @@ export async function exportAllData(): Promise<ExportData> {
 
   const attachmentExports: AttachmentExport[] = [];
   for (const a of attachments) {
-    const { blob, ...meta } = a;
+    // Les files d'IndexedDB sempre porten blob; `url` només existeix als
+    // adjunts en memòria del mode lectura, que mai passen per aquí.
+    if (!a.blob) continue;
+    const { blob, url, ...meta } = a;
+    void url;
     attachmentExports.push({ ...meta, dataBase64: await blobToBase64(blob) });
   }
 

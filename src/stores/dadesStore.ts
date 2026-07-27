@@ -5,6 +5,7 @@ import type { Sector, Repositori, Referencia, Attachment } from '../types';
 import * as db from '../services/db';
 import type { ActiveView } from '../services/db';
 import { isAcceptedFile, MAX_FILE_BYTES } from '../constants';
+import { loadPublicArxiu } from '../services/arxiu';
 
 interface DadesState {
   sectors: Sector[];
@@ -14,9 +15,14 @@ interface DadesState {
   activeView: ActiveView;
   isLoading: boolean;
   error: string | null;
+  /* Mode lectura: qui mira l'arxiu publicat sense ser-ne el curador. Tot es
+     veu igual; el que desapareix és qualsevol acció que escrigui. */
+  readOnly: boolean;
+  publishedAt: number | null;
 
   // Càrrega
   loadAll: () => Promise<void>;
+  loadPublic: () => Promise<boolean>;
 
   // Vista activa
   setActiveView: (view: ActiveView) => void;
@@ -71,6 +77,8 @@ export const useDadesStore = create<DadesState>()(
     activeView: { mode: 'tot' },
     isLoading: false,
     error: null,
+    readOnly: false,
+    publishedAt: null,
 
     // === Càrrega ===
 
@@ -109,6 +117,28 @@ export const useDadesStore = create<DadesState>()(
           state.isLoading = false;
         });
       }
+    },
+
+    /* Carrega l'arxiu publicat per a qui només mira. No toca IndexedDB: les
+       dades viuen a memòria mentre la pestanya és oberta i prou. */
+    loadPublic: async () => {
+      set(state => { state.isLoading = true; state.error = null; });
+      const arxiu = await loadPublicArxiu();
+      if (!arxiu) {
+        set(state => { state.isLoading = false; state.readOnly = true; });
+        return false;
+      }
+      set(state => {
+        state.sectors = arxiu.sectors;
+        state.repositoris = arxiu.repositoris;
+        state.referencies = arxiu.referencies;
+        state.attachments = arxiu.attachments;
+        state.publishedAt = arxiu.publishedAt;
+        state.readOnly = true;
+        state.isLoading = false;
+        state.activeView = { mode: 'tot' };
+      });
+      return true;
     },
 
     // === Vista activa ===
@@ -270,6 +300,9 @@ export const useDadesStore = create<DadesState>()(
         const repositori = state.repositoris.find(r => r.id === repositoriId);
         if (repositori) repositori.referenceOrder = newOrder;
       });
+      // Qui mira pot ordenar-ho com li vingui de gust: es queda a la seva
+      // pantalla i es desfà en recarregar. L'arxiu publicat no es toca.
+      if (get().readOnly) return;
       const repositori = get().repositoris.find(r => r.id === repositoriId);
       if (repositori) await db.saveRepositori(repositori);
     },
@@ -277,6 +310,7 @@ export const useDadesStore = create<DadesState>()(
     // === Adjunts ===
 
     loadAttachmentsForView: async () => {
+      if (get().readOnly) return; // en públic ja hi són tots des del principi
       const view = get().activeView;
       let attachments: Attachment[];
       if (view.mode === 'repositori') {

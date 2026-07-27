@@ -16,3 +16,15 @@ export const MAX_FILE_BYTES = 20 * 1024 * 1024;
 export function isAcceptedFile(file: File): boolean {
   return file.type.startsWith('image/') || file.type === 'application/pdf';
 }
+
+/* L'arxiu públic d'EgoDe. Va en un repositori a part del codi: així publicar
+   no embruta la història del codi i les imatges viuen separades.
+   Es serveix per GitHub Pages sota el mateix domini que l'app
+   (alexartazcoz.github.io), o sigui mateix origen i cap problema de CORS. */
+export const ARXIU_REPO = 'AlexArtazcoz/egode-arxiu';
+export const ARXIU_PUBLIC_URL = 'https://alexartazcoz.github.io/egode-arxiu/';
+
+/* Costat llarg màxim de les imatges publicades. L'original es queda a la
+   còpia privada; el públic va lleuger perquè carregui de pressa. */
+export const ARXIU_MAX_PX = 1600;
+export const ARXIU_JPEG_Q = 0.82;

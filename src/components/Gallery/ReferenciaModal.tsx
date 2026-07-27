@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus, Star, Trash2, X } from 'lucide-react';
-import { isImageAttachment, useBlobUrl } from '../Attachments/attachmentUtils';
+import { isImageAttachment, useAttachmentUrl } from '../Attachments/attachmentUtils';
 import { useDadesStore } from '../../stores/dadesStore';
 import { useUIStore } from '../../stores/uiStore';
 import { MAX_FILE_BYTES, isAcceptedFile } from '../../constants';
@@ -34,7 +34,7 @@ function Thumb({
   onDelete: () => void;
 }) {
   const isImage = isImageAttachment(attachment);
-  const url = useBlobUrl(isImage ? attachment.blob : null);
+  const url = useAttachmentUrl(isImage ? attachment : null);
   const [confirming, setConfirming] = useState(false);
 
   return (

@@ -12,6 +12,8 @@ import {
   restoreFromGitHub,
 } from '../services/backup';
 import { exportAllData, importAllData, downloadJson, pickAndReadJsonFile } from '../services/db';
+import { publishArxiu } from '../services/arxiu';
+import { ARXIU_PUBLIC_URL } from '../constants';
 
 const inputStyle: React.CSSProperties = {
   height: 40, borderRadius: 8, border: '0.5px solid var(--color-border)',
@@ -38,6 +40,7 @@ export function SettingsModal() {
   const [restoreArmed, setRestoreArmed] = useState(false);
   const [backupStatus, setBackupStatus] = useState(() => getBackupState());
   const [importing, setImporting] = useState(false);
+  const [publishing, setPublishing] = useState<string | null>(null);
 
   useEffect(() => {
     if (settingsModalOpen) {
@@ -134,6 +137,27 @@ export function SettingsModal() {
       }
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    setPublishing('Preparant…');
+    try {
+      const res = await publishArxiu((fet, total) =>
+        setPublishing(total ? `Imatge ${fet + 1} de ${total}…` : 'Publicant…'),
+      );
+      addToast({
+        type: 'success',
+        message: `Publicat: ${res.referencies} referències, ${res.imatges} imatges (${res.pujades} de noves). Trigarà un minut a sortir en línia.`,
+        duration: 9000,
+      });
+    } catch (e) {
+      addToast({
+        type: 'error',
+        message: `No s'ha pogut publicar: ${e instanceof Error ? e.message : 'error desconegut'}`,
+      });
+    } finally {
+      setPublishing(null);
     }
   };
 
@@ -268,6 +292,37 @@ export function SettingsModal() {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Publicar l'arxiu — el que veu tothom qui entra sense token */}
+        <div style={{ borderTop: '0.5px solid var(--color-border)', paddingTop: 16 }}>
+          <span style={{ ...labelStyle, marginBottom: 10 }}>Arxiu públic</span>
+          <p style={{ fontSize: 10, lineHeight: 1.5, color: 'rgba(0,0,0,0.35)', margin: '0 0 10px' }}>
+            Puja tot el que tens a l'arxiu obert, amb les imatges alleugerides.
+            Qui hi entri ho veurà igual que tu, però sense poder tocar res.
+          </p>
+          <button
+            onClick={handlePublish}
+            disabled={publishing !== null || !hasBackupConfig()}
+            style={{
+              width: '100%', height: 36, borderRadius: 8,
+              background: 'var(--color-accent)', color: 'var(--color-black)',
+              border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500,
+              opacity: publishing !== null || !hasBackupConfig() ? 0.5 : 1,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}
+          >
+            {publishing && <Loader2 size={13} className="animate-spin" />}
+            {publishing ?? 'Publica l\'arxiu'}
+          </button>
+          <a
+            href={ARXIU_PUBLIC_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: 10, color: 'rgba(0,0,0,0.35)', marginTop: 8, display: 'block' }}
+          >
+            Veure l'arxiu publicat ↗
+          </a>
         </div>
 
         {/* Còpia en un fitxer — abans al menú del boli de la barra esquerra */}

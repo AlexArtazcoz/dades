@@ -51,7 +51,10 @@ export interface Attachment {
   mimeType: string;
   size: number; // bytes
   createdAt: number;
-  blob: Blob;
+  // Un dels dos: blob si ve d'IndexedDB (mode curador), url si ve de
+  // l'arxiu públic (mode lectura). Mai tots dos buits.
+  blob?: Blob;
+  url?: string;
 }
 
 // L'adjunt tal com viatja per l'export/import JSON (Blob → base64)

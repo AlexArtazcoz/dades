@@ -91,7 +91,7 @@ function setBackupState(state: BackupState): void {
 
 // === Client de l'API ===
 
-async function gh<T>(path: string, init?: RequestInit): Promise<T> {
+export async function gh<T>(path: string, init?: RequestInit): Promise<T> {
   const { token } = getBackupConfig();
   const res = await fetch(`${API}${path}`, {
     ...init,
@@ -143,7 +143,7 @@ function base64ToBytes(base64: string): Uint8Array {
   return bytes;
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
+export function bytesToBase64(bytes: Uint8Array): string {
   let binary = '';
   const CHUNK = 0x8000;
   for (let i = 0; i < bytes.length; i += CHUNK) {
@@ -154,7 +154,7 @@ function bytesToBase64(bytes: Uint8Array): string {
 
 /* sha1 de git per a un blob: "blob <mida>\0" + contingut.
    Si crypto.subtle no hi és, retornem null i el blob es puja sempre. */
-async function gitBlobSha(bytes: Uint8Array): Promise<string | null> {
+export async function gitBlobSha(bytes: Uint8Array): Promise<string | null> {
   try {
     const header = new TextEncoder().encode(`blob ${bytes.length}\0`);
     const full = new Uint8Array(header.length + bytes.length);
@@ -191,7 +191,7 @@ function fingerprintOf(
   return `${data.repositoris.length}|${data.referencies.length}|${hash}|${atts}`;
 }
 
-function sanitizeFilename(name: string): string {
+export function sanitizeFilename(name: string): string {
   return name.replace(/[^\w.·-]+/gu, '-').replace(/-{2,}/g, '-').slice(0, 60);
 }
 

@@ -51,3 +51,27 @@ export function useBlobUrl(blob: Blob | null | undefined): string {
   }, [blob]);
   return url;
 }
+
+/* La font d'un adjunt, vingui d'on vingui: en mode curador és un object URL
+   sobre el blob d'IndexedDB; en mode lectura, la imatge servida per Pages.
+   Els components no han de saber en quin mode són. */
+export function useAttachmentUrl(attachment: Attachment | null | undefined): string {
+  const blobUrl = useBlobUrl(attachment?.url ? null : attachment?.blob);
+  return attachment?.url ?? blobUrl;
+}
+
+/* Descarrega un adjunt tant si el tenim en memòria com si viu a l'arxiu. */
+export function downloadAttachment(attachment: Attachment) {
+  if (attachment.blob) {
+    downloadBlob(attachment.blob, attachment.name);
+    return;
+  }
+  if (!attachment.url) return;
+  const a = document.createElement('a');
+  a.href = attachment.url;
+  a.download = attachment.name;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}

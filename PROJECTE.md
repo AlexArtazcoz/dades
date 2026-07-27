@@ -241,3 +241,29 @@ a les fitxes amb foto, la capa d'accions de les miniatures i el toast.
 ```bash
 npm --prefix ~/Desktop/Claude/Investing/dades run dev
 ```
+
+- [x] **Fase 7 — Mode públic (només lectura)**
+  L'app és la mateixa per a tothom; l'únic que canvia és qui pot escriure.
+  `services/arxiu.ts`: `publishArxiu()` puja el dataset curat (`data.json` +
+  imatges reduïdes a 1600px JPEG) al repositori públic amb la mateixa Git
+  Data API de les còpies, sense repujar el que no ha canviat;
+  `loadPublicArxiu()` el llegeix sense token ni IndexedDB.
+  **Qui és el curador**: qui té token configurat **o** ja té sectors en
+  aquest navegador. Sense cap de les dues coses, mode lectura. (Sense la
+  segona condició, un navegador amb dades però sense token encara configurat
+  —el cas real d'ara— hauria arrencat en públic i no hauria vist res.)
+  En mode lectura desapareix el llapis de les fitxes, les icones d'editar,
+  esborrar i crear del calaix, l'engranatge, la ingesta (arrossegar i Cmd+V)
+  i el reanomenar/esborrar del visor. Es manté tot el moviment: navegació,
+  visor a pantalla completa i **reordenar arrossegant, que es queda a la
+  pantalla de qui mira i no toca l'arxiu**.
+  L'engranatge torna a sortir amb `#curador` a l'adreça: és per on el curador
+  entra el token en un navegador nou, que si no es quedaria tancat a fora.
+  `Attachment.blob` passa a opcional i s'hi afegeix `url`; `useAttachmentUrl`
+  unifica les dues fonts perquè cap component sàpiga en quin mode és.
+  Verificat al navegador: mode curador intacte (2 referències, 2 llapis),
+  mode lectura sense cap acció d'edició, navegació i visor funcionant,
+  reordenar que canvia la pantalla i deixa el disc igual, i la lectura d'un
+  `data.json` simulat que pinta la galeria amb imatges remotes.
+  **Pendent d'Alex**: crear el repositori públic `egode-arxiu` i activar-hi
+  Pages (veure VISIO.md).
