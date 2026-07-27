@@ -1,26 +1,11 @@
 import { useEffect, useState } from 'react';
-import { LeftBar } from './components/LeftBar';
-import { Sidebar } from './components/Sidebar';
-import { Storyboard } from './components/Storyboard';
-import { ApiKeyModal } from './components/ApiKeyModal';
-import { SettingsModal } from './components/SettingsModal';
-import { YTDescriptionModal } from './components/YTDescriptionModal';
 import { ToastContainer } from './components/ToastContainer';
-import { useScriptStore } from './stores/scriptStore';
 import { useUIStore } from './stores/uiStore';
-import { getStoredApiKey, initializeDatabase } from './services/db';
+import { initializeDatabase } from './services/db';
 import { hasBackupConfig, restoreFromGitHub, startAutoBackup, syncWithRemote } from './services/backup';
 
 function App() {
-  const { loadScripts, scripts, isLoading } = useScriptStore();
-  const { addToast, mainFontSize, mainLineHeight, sidebarOpen } = useUIStore();
-
-  // Apply typography settings to CSS custom properties
-  useEffect(() => {
-    const root = document.documentElement;
-    root.style.setProperty('--main-font-size', `${mainFontSize}px`);
-    root.style.setProperty('--main-line-height', String(mainLineHeight));
-  }, [mainFontSize, mainLineHeight]);
+  const { addToast } = useUIStore();
   const [restoring, setRestoring] = useState(false);
   const [dbInitialized, setDbInitialized] = useState(false);
 
@@ -34,34 +19,11 @@ function App() {
         console.error('Failed to initialize database:', error);
         addToast({
           type: 'error',
-          message: 'Failed to initialize database',
+          message: 'No s\'ha pogut inicialitzar la base de dades',
         });
       }
     };
     init();
-  }, [addToast]);
-
-  // Load scripts after database is initialized
-  useEffect(() => {
-    if (dbInitialized) {
-      loadScripts();
-    }
-  }, [dbInitialized, loadScripts]);
-
-  // Check for API key on mount
-  useEffect(() => {
-    const apiKey = getStoredApiKey();
-    if (!apiKey) {
-      // Show a gentle reminder after a short delay
-      const timer = setTimeout(() => {
-        addToast({
-          type: 'info',
-          message: 'Add your OpenAI API key to enable generation',
-          duration: 6000,
-        });
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
   }, [addToast]);
 
   // Còpies automàtiques al GitHub mentre l'app és oberta
@@ -86,8 +48,8 @@ function App() {
         const result = await syncWithRemote();
         if (cancelled) return;
         if (result === 'restored') {
-          await loadScripts();
-          addToast({ type: 'success', message: 'Actualitzat amb la còpia del GitHub' });
+          // Fins que hi hagi store propi (Fase 2), un refresc recarrega l'estat
+          window.location.reload();
         } else if (result === 'conflict') {
           addToast({
             type: 'warning',
@@ -111,66 +73,54 @@ function App() {
       cancelled = true;
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [dbInitialized, loadScripts, addToast]);
+  }, [dbInitialized, addToast]);
 
   const handleRestore = async () => {
     setRestoring(true);
     try {
-      const { scriptsImported } = await restoreFromGitHub();
-      await loadScripts();
-      addToast({
-        type: 'success',
-        message: `Còpia restaurada: ${scriptsImported} projecte${scriptsImported === 1 ? '' : 's'}`,
-      });
+      await restoreFromGitHub();
+      window.location.reload();
     } catch (error) {
       addToast({
         type: 'error',
         message: `No s'ha pogut restaurar: ${error instanceof Error ? error.message : 'error desconegut'}`,
       });
-    } finally {
       setRestoring(false);
     }
   };
 
-  if (!dbInitialized || isLoading) {
+  if (!dbInitialized) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white/40">
-          {!dbInitialized ? 'Initializing...' : 'Loading...'}
-        </div>
+        <div className="text-white/40">Inicialitzant…</div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-black">
-      <LeftBar />
-      <Sidebar />
-      <Storyboard />
-      <ApiKeyModal />
-      <SettingsModal />
-      <YTDescriptionModal />
       <ToastContainer />
 
-      {/* Base de dades buida + còpia configurada al GitHub → oferir restaurar.
-          És el camí d'un navegador nou (o del link de GitHub Pages). */}
-      {scripts.length === 0 && !sidebarOpen && hasBackupConfig() && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center px-6 pointer-events-none">
-          <div className="pointer-events-auto w-full max-w-[400px] text-center text-white">
-            <p className="text-sm leading-relaxed text-white/60 mb-5">
-              Aquest navegador no té cap projecte, però hi ha una còpia de
-              seguretat al GitHub.
-            </p>
+      {/* Pantalla buida provisional: la galeria arriba a la Fase 3 */}
+      <div className="fixed inset-0 flex items-center justify-center px-6">
+        <div className="w-full max-w-[400px] text-center text-white">
+          <h1 className="text-2xl font-semibold tracking-tight mb-2">Dades</h1>
+          <p className="text-sm leading-relaxed text-white/40">
+            Base de referències visual. Encara no hi ha res a ensenyar.
+          </p>
+
+          {/* Navegador nou + còpia configurada al GitHub → oferir restaurar */}
+          {hasBackupConfig() && (
             <button
               onClick={handleRestore}
               disabled={restoring}
-              className="w-full max-w-[280px] px-4 py-2.5 bg-[var(--color-accent)] hover:bg-[#e89a3f] disabled:opacity-50 text-[#1a1a1a] rounded-lg shadow-lg font-medium text-sm"
+              className="mt-5 w-full max-w-[280px] px-4 py-2.5 bg-[var(--color-accent)] hover:bg-[#e89a3f] disabled:opacity-50 text-[#1a1a1a] rounded-lg shadow-lg font-medium text-sm"
             >
-              {restoring ? 'Restaurant…' : 'Restaura els projectes'}
+              {restoring ? 'Restaurant…' : 'Restaura les dades'}
             </button>
-          </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
