@@ -129,7 +129,7 @@ function App() {
       {sectors.length === 0 && !sidebarOpen && (
         <div className="fixed inset-0 z-20 flex items-center justify-center px-6 pointer-events-none" style={{ paddingLeft: 110 }}>
           <div className="pointer-events-auto w-full max-w-[400px] text-center text-[var(--color-black)]">
-            <h1 className="text-2xl font-semibold tracking-tight mb-2">Dades</h1>
+            <h1 className="text-2xl font-semibold tracking-tight mb-2">EgoDe</h1>
             <p className="text-sm leading-relaxed text-[var(--color-text-muted)] mb-5">
               {hasBackupConfig()
                 ? 'Aquest navegador no té cap sector, però hi ha una còpia de seguretat al GitHub.'
