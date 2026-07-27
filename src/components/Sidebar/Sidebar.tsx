@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Pencil, X } from 'lucide-react';
-import { DeleteIcon, EditIcon, NewSceneIcon } from '../Icons';
+import { Config50Icon, DeleteIcon, EditIcon, NewSceneIcon } from '../Icons';
 import { useDadesStore } from '../../stores/dadesStore';
 import { useUIStore } from '../../stores/uiStore';
 import { DEVICE_HAS_HOVER } from '../../utils/interaction';
@@ -484,7 +484,7 @@ export function Sidebar() {
     createRepositori, updateRepositori,
   } = useDadesStore();
 
-  const { sidebarOpen, sidebarClosing, setSidebarOpen, addToast } = useUIStore();
+  const { sidebarOpen, sidebarClosing, setSidebarOpen, addToast, setSettingsModalOpen } = useUIStore();
 
   const [modalTarget, setModalTarget] = useState<ModalTarget | null>(null);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
@@ -600,6 +600,13 @@ export function Sidebar() {
               title="Nou sector"
             >
               <NewSceneIcon size={50} />
+            </button>
+            <button
+              onClick={() => setSettingsModalOpen(true)}
+              className="sidebar-icon-btn sidebar-icon-settings"
+              title="Configuració"
+            >
+              <Config50Icon />
             </button>
           </div>
 

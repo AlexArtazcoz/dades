@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { LeftBar } from './components/LeftBar';
 import { Sidebar } from './components/Sidebar';
 import { Gallery } from './components/Gallery';
+import { SettingsModal } from './components/SettingsModal';
 import { ToastContainer } from './components/ToastContainer';
 import { useDadesStore } from './stores/dadesStore';
 import { useUIStore } from './stores/uiStore';
@@ -118,6 +119,7 @@ function App() {
     <div className="min-h-screen bg-black">
       <LeftBar />
       <Sidebar />
+      <SettingsModal />
       <ToastContainer />
 
       {/* La galeria masonry de la vista activa */}

@@ -163,12 +163,26 @@ Es manté la disciplina de `SCHEMA_MIGRATIONS.md` des del primer dia
   retallada escriuria un `referenceOrder` amb només els elements visibles.
   Verificat al navegador: cerca «seccio» → «Secció constructiva», AND de
   chips (3d+tipografia → 1 de 7) i reinici en canviar de vista.
-- [ ] **Fase 6 — Còpia de seguretat i desplegament**
-  Backup al GitHub (repo `dades-backup`) reutilitzant `backup.ts`, workflow de
-  Pages amb base `/dades/`. El workflow està en manual (`workflow_dispatch`)
-  fins que hi hagi Pages: recuperar llavors el disparador de push. Pendent
-  d'Alex: crear el repo `dades-backup`, activar Pages (repo privat → cal pla
-  de pagament o fer públic `dades`) i generar el token fine-grained.
+- [x] **Fase 6 — Còpia de seguretat i desplegament** *(codi fet; 2 passos manuals pendents)*
+  `SettingsModal` recuperat de SceneScript (només la secció de còpies, en
+  català, centrat a pantalla): repo/token amb ull per mostrar-lo, còpia
+  automàtica commutable, estat de l'última còpia, «Fes còpia ara» i
+  «Restaura» amb confirmació armada. S'obre amb l'engranatge de baix del
+  calaix. Workflow de Pages amb disparador de push reactivat. Creat el repo
+  privat `AlexArtazcoz/dades-backup` (les còpies de dades van aquí, mai al
+  repo del codi).
+  **Pendent d'Alex** (el canvi de visibilitat el bloqueja el classificador
+  de permisos):
+  1. Fer públic el repo del codi: `gh repo edit AlexArtazcoz/dades
+     --visibility public --accept-visibility-change-consequences`
+  2. Activar Pages: `gh api -X POST repos/AlexArtazcoz/dades/pages -f
+     build_type=workflow` i rellançar el workflow
+  3. Token fine-grained (github.com → Settings → Developer settings →
+     Fine-grained tokens): només repo `dades-backup`, permís Contents
+     read&write; enganxar-lo a Configuració dins l'app amb el repo
+     `AlexArtazcoz/dades-backup`.
+  URL final: https://alexartazcoz.github.io/dades/ (recordar que a Pages la
+  BD del navegador és una altra: restaurar-hi la còpia el primer cop).
 
 ## Convencions i traps (heretades de SceneScript)
 
