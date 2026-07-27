@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { useUIStore } from '../stores/uiStore';
 import type { Toast } from '../stores/uiStore';
@@ -53,7 +54,7 @@ export function ToastContainer() {
 }
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
-  return (
+  return createPortal(
     <div
       className={`flex items-start gap-3 min-w-[300px] max-w-md px-4 py-3 rounded-lg shadow-lg border ${getToastStyles(toast.type)}`}
     >
@@ -68,6 +69,8 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
         <X size={16} />
       </button>
     </div>
+    ,
+    document.body,
   );
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Plus, Star, Trash2, X } from 'lucide-react';
 import { isImageAttachment, useAttachmentUrl } from '../Attachments/attachmentUtils';
 import { useDadesStore } from '../../stores/dadesStore';
@@ -173,7 +174,9 @@ export function ReferenciaModal({
     onClose();
   };
 
-  return (
+  /* Portal a body: la galeria té stacking context propi (z-index 25) i, sense
+     portal, cap z-index tret d'aquí no pot passar per sobre de la barra. */
+  return createPortal(
     <div
       className="fixed inset-0 z-50"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
@@ -348,6 +351,7 @@ export function ReferenciaModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

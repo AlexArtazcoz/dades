@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Pencil, X } from 'lucide-react';
 import { Config50Icon, DeleteIcon, EditIcon, NewSceneIcon } from '../Icons';
 import { useDadesStore } from '../../stores/dadesStore';
@@ -81,7 +82,7 @@ function EntityModal({
     if (e.key === 'Enter') handleSubmit();
   };
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
@@ -182,7 +183,8 @@ function EntityModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useDadesStore } from '../stores/dadesStore';
 import { useUIStore } from '../stores/uiStore';
@@ -174,7 +175,7 @@ export function SettingsModal() {
 
   if (!settingsModalOpen) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50"
       onClick={() => setSettingsModalOpen(false)}
@@ -366,6 +367,7 @@ export function SettingsModal() {
           Fet
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
