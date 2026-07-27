@@ -89,14 +89,23 @@ Es manté la disciplina de `SCHEMA_MIGRATIONS.md` des del primer dia
 
 ## Fases del pla
 
-- [ ] **Fase 0 — Neteja i rebatejat**
-  Esborrar el codi de vídeo/LLM llistat a dalt, treure `openai` del
-  `package.json`, rebatejar l'app a "Dades" (títol, `index.html`, LeftBar),
-  BD Dexie nova, `git init` + primer commit com a línia base. `npm run build`
-  verd i app arrencant amb pantalla buida.
-- [ ] **Fase 1 — Model de dades v1**
-  Tipus nous, esquema Dexie v1 amb validadors i backfill, CRUD complet,
-  export/import amb adjunts en base64. Sense UI encara: verificat per consola.
+- [x] **Fase 0 — Neteja i rebatejat**
+  Fora tot el codi de vídeo/LLM (generació, proxy de Vite, modals, wordCount)
+  i també la UI vella sencera (Storyboard, SceneCard, Sidebar, LeftBar,
+  SettingsModal, scriptStore): les fases 2-3 la refaran adaptant-la des del
+  repo de SceneScript, que queda com a referència. El visor d'adjunts viu ara
+  a `src/components/Attachments/`. App mínima: inicialitza la BD, toasts i
+  botó de restaurar còpia. Base de Pages `/dades/`, dev al port 5174.
+- [x] **Fase 1 — Model de dades v1**
+  `types/index.ts` i `db.ts` nous de dalt a baix: `DadesDB` amb taules
+  sectors/repositoris/referencies/attachments, validadors amb backfill, CRUD
+  amb esborrats en cascada, export/import amb adjunts en base64. `backup.ts`
+  adaptat al model nou. **Totes les claus de localStorage porten prefix
+  `dades_`**: a GitHub Pages l'app compartirà origen amb SceneScript i sense
+  prefix es trepitjarien la configuració. Verificat per consola: CRUD,
+  export → clear → import amb blob intacte byte a byte, backfill de camps
+  absents i cascada sector → repositori → referència → adjunt. Lint a zero
+  (els 3 errors heretats eren al db.ts vell).
 - [ ] **Fase 2 — Store i menú lateral**
   `dadesStore` (Zustand) amb sectors/repositoris/referències. Sidebar:
   sectors desplegables amb els seus repositoris (patró del desplegable de

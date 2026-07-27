@@ -1,178 +1,67 @@
-// === Core Types ===
+// === Model de Dades ===
+//
+// Sector (Disseny, Arquitectura…)
+//   └── Repositori (halfof8, un estudi, un autor…)
+//         └── Referència (un pòster, una web, un edifici…)
+//               └── Attachment (les imatges/PDFs que es veuen a la galeria)
+//
+// Els camps de text opcionals es guarden com a '' (mai undefined): els
+// validadors de db.ts són més simples i el backfill és trivial.
 
-export type ScriptStatus = 'backlog' | 'in-progress' | 'done';
-
-// Kind of a project sub-category (tab). Controls scene semantics:
-// 'architecture' — durationSec means HOURS to dedicate, lock = hours already spent
-// 'video'        — durationSec means seconds of runtime (original behavior)
-export type CategoryKind = 'architecture' | 'video';
-
-// A renamable tab inside a project. Every project gets 4 by default
-// (3 architecture phases + 1 YouTube video). Scene ordering lives here,
-// scoped per category — Script.sceneOrder is legacy and no longer used.
-export interface ScriptCategory {
+export interface Sector {
   id: string;
   name: string;
-  kind: CategoryKind;
-  sceneOrder: string[]; // scene IDs in display order within this tab
+  emoji: string; // '' = sense emoji
+  order: number; // posició al menú lateral
+  createdAt: number;
 }
 
-export interface Script {
+export interface Repositori {
   id: string;
+  sectorId: string;
   name: string;
-  titleJP: string; // Japanese version of the title (vertical in sidebar)
-  emoji: string; // displayed before script name in sidebar
-  paceWordsPerSec: number; // e.g., 2.5 words per second
-  voiceProfile: string; // tone guide for LLM
-  sceneOrder: string[]; // LEGACY (pre-v6): kept so old validators/exports don't break
-  categories: ScriptCategory[]; // v6+: the 4 renamable tabs
-  status: ScriptStatus;
+  emoji: string; // '' = sense emoji
+  sourceUrl: string; // enllaç a la font (web de l'autor/estudi); '' = cap
+  description: string;
+  referenceOrder: string[]; // ids de referència en ordre de galeria
   createdAt: number;
   updatedAt: number;
 }
 
-export interface DraftVersion {
-  index: number; // v1=0, v2=1, etc.
-  content: string;
-  createdAt: number;
-  source: 'manual' | 'from-narration-edit';
-}
-
-export interface NarrationVersion {
+export interface Referencia {
   id: string;
-  content: string;
-  wordCount: number;
-  createdAt: number;
-}
-
-export interface Reference {
-  id: string;
-  label: string;
-  url: string;
-  note: string;
-}
-
-export interface OnScreenText {
-  id: string;
-  text: string;
-  isChecked: boolean;
-}
-
-export interface Scene {
-  id: string;
-  scriptId: string;
-  categoryId: string; // v6+: which tab this scene belongs to
+  repositoriId: string;
   title: string;
-  durationSec: number; // seconds (video tabs) or hours (architecture tabs)
-  isFixed: boolean;
-
-  // Versioned draft notes
-  draftVersions: DraftVersion[];
-  currentDraftIndex: number; // points to active version
-
-  // Generated output
-  narration: string | null;
-  narrationGeneratedAt: number | null;
-  narrationFromDraftIndex: number | null; // which version generated this
-
-  // Narration versions — each successful generation adds a version
-  narrationVersions: NarrationVersion[];
-  currentNarrationVersionIndex: number;
-
-  // On-screen texts (checkable list)
-  onScreenTexts: OnScreenText[];
-
-  references: Reference[];
+  url: string; // enllaç d'on surt la referència; '' = cap
+  note: string;
+  tags: string[];
+  coverAttachmentId: string | null; // quina imatge fa de portada a la galeria
+  createdAt: number;
+  updatedAt: number;
 }
 
-// A file (PDF/PNG/JPG plan, drawing, image) attached to a scene column.
-// Stored in its own Dexie table so scene edits never rewrite blobs.
+// Un fitxer (PNG/JPG/WebP/GIF/SVG/PDF) adjuntat a una referència.
+// Taula pròpia a Dexie: les referències es reescriuen a cada tecla premuda
+// i els blobs no han de viatjar amb elles.
 export interface Attachment {
   id: string;
-  sceneId: string;
-  scriptId: string; // denormalized for per-project loading and cascade deletes
+  referenciaId: string;
+  repositoriId: string; // desnormalitzat per carregar galeries i esborrats en cascada
   name: string;
-  mimeType: string; // application/pdf | image/png | image/jpeg
+  mimeType: string;
   size: number; // bytes
   createdAt: number;
   blob: Blob;
 }
 
-// Attachment as it travels through JSON export/import (Blob → base64)
+// L'adjunt tal com viatja per l'export/import JSON (Blob → base64)
 export interface AttachmentExport {
   id: string;
-  sceneId: string;
-  scriptId: string;
+  referenciaId: string;
+  repositoriId: string;
   name: string;
   mimeType: string;
   size: number;
   createdAt: number;
   dataBase64: string;
-}
-
-// === Derived/Computed Types ===
-
-export type FitStatus = 'under' | 'ok' | 'over';
-
-export interface SceneComputed {
-  targetWords: number;
-  actualWords: number;
-  fitStatus: FitStatus;
-  fitPercent: number; // deviation from target (e.g., -5 means 5% under)
-  isOutdated: boolean;
-  canEdit: boolean;
-  canGenerate: boolean;
-}
-
-export interface SceneWithComputed extends Scene {
-  computed: SceneComputed;
-}
-
-// === Generation Types ===
-
-export type GenerationMode =
-  | { type: 'all-unlocked' }
-  | { type: 'missing-or-outdated' }
-  | { type: 'from-scene'; sceneId: string; onlyOutdated: boolean };
-
-export interface GenerationTarget {
-  target: number;
-  min: number;
-  max: number;
-  tolerance: number;
-}
-
-export interface GenerationResult {
-  sceneId: string;
-  success: boolean;
-  narration?: string;
-  wordCount?: number;
-  error?: string;
-}
-
-// === UI State Types ===
-
-export interface UIState {
-  sidebarOpen: boolean;
-  activeScriptId: string | null;
-  selectedSceneId: string | null;
-  isGenerating: boolean;
-  generatingSceneIds: string[];
-  apiKeyModalOpen: boolean;
-}
-
-// === Undo/Redo Types ===
-
-export interface UndoableAction {
-  type: string;
-  timestamp: number;
-  payload: unknown;
-  undo: () => void;
-  redo: () => void;
-}
-
-// === API Key Types ===
-
-export interface APIKeyConfig {
-  openaiKey: string | null;
 }

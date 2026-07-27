@@ -4,7 +4,7 @@ import type { AttachmentExport } from '../types';
 /* Còpia de seguretat contínua al GitHub.
  *
  * Cada còpia és un commit en un repo privat de l'Alex:
- *   data.json                     — projectes, columnes i metadades d'adjunts
+ *   data.json                     — sectors, repositoris, referències i metadades d'adjunts
  *   attachments/<id>__<nom>       — un fitxer binari per adjunt
  *
  * Es fa servir la Git Data API (blobs → tree → commit → ref) perquè un sol
@@ -14,15 +14,15 @@ import type { AttachmentExport } from '../types';
  *
  * El token (fine-grained, només permís Contents sobre el repo de còpies) i la
  * resta de configuració viuen a localStorage — per tant són per navegador.
- * L'API key d'OpenAI NO s'inclou mai a la còpia: és un secret i no ha d'anar
- * a cap repo, ni que sigui privat.
+ * Prefix "dades_" a totes les claus: a GitHub Pages aquesta app comparteix
+ * origen amb SceneScript i sense prefix es trepitjarien la configuració.
  */
 
-const KEY_TOKEN = 'github_backup_token';
-const KEY_REPO = 'github_backup_repo';
-const KEY_BRANCH = 'github_backup_branch';
-const KEY_AUTO = 'github_backup_auto';
-const KEY_STATE = 'github_backup_state';
+const KEY_TOKEN = 'dades_github_backup_token';
+const KEY_REPO = 'dades_github_backup_repo';
+const KEY_BRANCH = 'dades_github_backup_branch';
+const KEY_AUTO = 'dades_github_backup_auto';
+const KEY_STATE = 'dades_github_backup_state';
 
 const AUTO_INTERVAL_MS = 3 * 60 * 1000;
 const API = 'https://api.github.com';
@@ -170,10 +170,16 @@ async function gitBlobSha(bytes: Uint8Array): Promise<string | null> {
 /* Empremta barata de l'estat: si no canvia, la còpia automàtica no fa res.
    Ordenem per id abans de serialitzar perquè l'empremta sigui la mateixa
    vingui d'on vingui la llista (Dexie, manifest restaurat…). */
-function fingerprintOf(data: Pick<ExportData, 'scripts' | 'scenes' | 'attachments'>): string {
+function fingerprintOf(
+  data: Pick<ExportData, 'sectors' | 'repositoris' | 'referencies' | 'attachments'>,
+): string {
   const byId = <T extends { id: string }>(list: T[]) =>
     [...list].sort((a, b) => a.id.localeCompare(b.id));
-  const content = JSON.stringify({ s: byId(data.scripts), c: byId(data.scenes) });
+  const content = JSON.stringify({
+    s: byId(data.sectors),
+    r: byId(data.repositoris),
+    f: byId(data.referencies),
+  });
   let hash = 5381;
   for (let i = 0; i < content.length; i++) {
     hash = ((hash << 5) + hash + content.charCodeAt(i)) | 0;
@@ -182,7 +188,7 @@ function fingerprintOf(data: Pick<ExportData, 'scripts' | 'scenes' | 'attachment
     .map(a => `${a.id}:${a.size}:${a.name}`)
     .sort()
     .join(',');
-  return `${data.scripts.length}|${data.scenes.length}|${hash}|${atts}`;
+  return `${data.repositoris.length}|${data.referencies.length}|${hash}|${atts}`;
 }
 
 function sanitizeFilename(name: string): string {
@@ -202,8 +208,9 @@ interface ManifestAttachment extends Omit<AttachmentExport, 'dataBase64'> {
 interface BackupManifest {
   version: number;
   exportedAt: number;
-  scripts: ExportData['scripts'];
-  scenes: ExportData['scenes'];
+  sectors: ExportData['sectors'];
+  repositoris: ExportData['repositoris'];
+  referencies: ExportData['referencies'];
   attachments: ManifestAttachment[];
 }
 
@@ -260,8 +267,8 @@ async function doBackup(reason: 'auto' | 'manual', retried = false): Promise<Bac
       await gh(`/repos/${cfg.repo}/contents/README.md`, {
         method: 'PUT',
         body: JSON.stringify({
-          message: 'Inicialitza el repositori de còpies de SceneScript',
-          content: btoa('# Copies de seguretat de SceneScript\n\nGenerat automaticament. No editar a ma.\n'),
+          message: 'Inicialitza el repositori de còpies de Dades',
+          content: btoa('# Copies de seguretat de Dades\n\nGenerat automaticament. No editar a ma.\n'),
           branch,
         }),
       });
@@ -283,7 +290,8 @@ async function doBackup(reason: 'auto' | 'manual', retried = false): Promise<Bac
 
     // Mai una còpia automàtica d'una base BUIDA sobre una còpia real: és el
     // que passaria en obrir l'app en un navegador nou abans de restaurar.
-    if (reason === 'auto' && data.scripts.length === 0 && existing.has('data.json')) {
+    const localIsEmpty = data.sectors.length === 0 && data.repositoris.length === 0;
+    if (reason === 'auto' && localIsEmpty && existing.has('data.json')) {
       return { skipped: true };
     }
 
@@ -320,8 +328,9 @@ async function doBackup(reason: 'auto' | 'manual', retried = false): Promise<Bac
     const manifest: BackupManifest = {
       version: data.version,
       exportedAt: data.exportedAt,
-      scripts: data.scripts,
-      scenes: data.scenes,
+      sectors: data.sectors,
+      repositoris: data.repositoris,
+      referencies: data.referencies,
       attachments: manifestAttachments,
     };
     entries.push({
@@ -340,7 +349,7 @@ async function doBackup(reason: 'auto' | 'manual', retried = false): Promise<Bac
     const commit = await gh<{ sha: string }>(`/repos/${cfg.repo}/git/commits`, {
       method: 'POST',
       body: JSON.stringify({
-        message: `Còpia ${reason === 'auto' ? 'automàtica' : 'manual'} — ${data.scripts.length} projectes, ${nAdj} adjunts`,
+        message: `Còpia ${reason === 'auto' ? 'automàtica' : 'manual'} — ${data.repositoris.length} repositoris, ${data.referencies.length} referències, ${nAdj} adjunts`,
         tree: tree.sha,
         parents: [headSha],
       }),
@@ -371,7 +380,7 @@ async function doBackup(reason: 'auto' | 'manual', retried = false): Promise<Bac
 
 // === Restauració ===
 
-export async function restoreFromGitHub(): Promise<{ scriptsImported: number; scenesImported: number }> {
+export async function restoreFromGitHub(): Promise<{ repositorisImported: number; referenciesImported: number }> {
   const cfg = getBackupConfig();
   if (!hasBackupConfig()) throw new Error('Configura el repositori i el token a Configuració');
 
@@ -392,10 +401,10 @@ export async function restoreFromGitHub(): Promise<{ scriptsImported: number; sc
   const data: ExportData = {
     version: manifest.version,
     exportedAt: manifest.exportedAt,
-    scripts: manifest.scripts,
-    scenes: manifest.scenes,
+    sectors: manifest.sectors,
+    repositoris: manifest.repositoris,
+    referencies: manifest.referencies,
     attachments,
-    settings: { apiKey: null, model: '' }, // els secrets no viatgen amb la còpia
   };
 
   const result = await importAllData(data, 'replace');
@@ -444,7 +453,7 @@ export async function syncWithRemote(): Promise<SyncResult> {
   if (state?.sha === headSha) return 'up-to-date';
 
   const local = await exportAllData();
-  const localEmpty = local.scripts.length === 0;
+  const localEmpty = local.sectors.length === 0 && local.repositoris.length === 0;
   const localDirty = state
     ? fingerprintOf(local) !== state.fingerprint
     : !localEmpty; // mai vist cap còpia: qualsevol dada local és "feina d'aquí"

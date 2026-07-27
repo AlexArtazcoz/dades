@@ -14,21 +14,15 @@ The app uses a **schema versioning system** that automatically detects and handl
 
 ### Schema Version History
 
-- **v1**: Initial schema (scripts, scenes)
-- **v2**: Added `status` field to Script type (`'backlog' | 'in-progress' | 'done'`)
-- **v3**: Added `emoji` field to Script
-- **v4**: Added `titleJP` field to Script
-- **v5**: Added `narrationVersions` + `currentNarrationVersionIndex` to Scene
-- **v6**: Project sub-categories + attachments:
-  - `Script.categories: ScriptCategory[]` — 4 renamable tabs (3 architecture phases +
-    1 YouTube video), each with its own `sceneOrder`. `Script.sceneOrder` is legacy
-    (kept for validation/back-compat, mirrored during the migration window).
-  - `Scene.categoryId` — which tab the scene belongs to. Existing scenes migrate to
-    the video tab (pre-v6 projects were video scripts).
-  - New `attachments` table (`id, sceneId, scriptId`) storing PDF/PNG/JPG `Blob`s.
-    Cascade-deleted with their scene/script; included in JSON export as base64
-    (`AttachmentExport.dataBase64`). Old export files without `attachments` or
-    `categories` are normalized on import (`ensureScriptCategories`).
+- **v1**: Initial schema (Dades): `sectors` (`id, order`), `repositoris`
+  (`id, sectorId, updatedAt`), `referencies` (`id, repositoriId`) and
+  `attachments` (`id, referenciaId, repositoriId`) storing image/PDF `Blob`s.
+  Attachments cascade-delete with their referència/repositori/sector and travel
+  through JSON export as base64 (`AttachmentExport.dataBase64`).
+
+> Nota: la numeració recomença a v1. L'historial v1–v6 de SceneScript és al
+> repo original (`AlexArtazcoz/scenescript`); aquí no aplica perquè la base de
+> dades és nova (`DadesDB`) i cap navegador té dades velles a migrar.
 
 ## Making Schema Changes
 
@@ -39,7 +33,7 @@ When you need to modify the data structure:
 Edit `src/types/index.ts` to add/modify fields:
 
 ```typescript
-export interface Script {
+export interface Referencia {
   // ... existing fields
   newField: string; // New field added
 }
@@ -58,18 +52,20 @@ const CURRENT_SCHEMA_VERSION = 3; // Was 2, now 3
 Add a new Dexie version with migration logic:
 
 ```typescript
-this.version(3)
+this.version(2)
   .stores({
-    scripts: 'id, name, updatedAt, status, newField', // Add new indexed fields
-    scenes: 'id, scriptId',
+    sectors: 'id, order',
+    repositoris: 'id, sectorId, updatedAt',
+    referencies: 'id, repositoriId, newField', // Add new indexed fields
+    attachments: 'id, referenciaId, repositoriId',
   })
   .upgrade(async tx => {
     // Migration logic to update existing data
-    const scripts = await tx.table('scripts').toArray();
-    for (const script of scripts) {
-      if (!script.newField) {
-        script.newField = 'default value';
-        await tx.table('scripts').put(script);
+    const referencies = await tx.table('referencies').toArray();
+    for (const referencia of referencies) {
+      if (!referencia.newField) {
+        referencia.newField = 'default value';
+        await tx.table('referencies').put(referencia);
       }
     }
   });
@@ -77,13 +73,17 @@ this.version(3)
 
 ### 4. Update Validation
 
-Update the `validateScript()` or `validateScene()` function to check new fields:
+Update `validateSector()`, `validateRepositori()` or `validateReferencia()`.
+**Backfill missing benign fields inside the validator** (assign a default and
+keep validating) — if a validator returns false, `initializeDatabase` clears
+the WHOLE database:
 
 ```typescript
-function validateScript(script: any): script is Script {
+function validateReferencia(referencia: AnyRec): boolean {
+  if (typeof referencia.newField === 'undefined') referencia.newField = ''; // backfill
   return (
     // ... existing checks
-    typeof script.newField === 'string' // Add validation for new field
+    typeof referencia.newField === 'string'
   );
 }
 ```
@@ -108,7 +108,7 @@ This will:
 Check the current schema version in localStorage:
 
 ```javascript
-localStorage.getItem('scenescript_schema_version')
+localStorage.getItem('dades_schema_version')
 ```
 
 ## What Happens Automatically
@@ -135,45 +135,3 @@ localStorage.getItem('scenescript_schema_version')
 4. **Test migrations** with old data before deploying
 5. **Document changes** in this file's version history
 
-## Example: Adding a New Field
-
-Let's say you want to add an `estimatedMinutes: number` field to Scene:
-
-```typescript
-// 1. Update types/index.ts
-export interface Scene {
-  // ... existing fields
-  estimatedMinutes: number;
-}
-
-// 2. Update db.ts - increment version
-const CURRENT_SCHEMA_VERSION = 3;
-
-// 3. Add Dexie version
-this.version(3)
-  .stores({
-    scripts: 'id, name, updatedAt, status',
-    scenes: 'id, scriptId', // No change needed if not indexing new field
-  })
-  .upgrade(async tx => {
-    const scenes = await tx.table('scenes').toArray();
-    for (const scene of scenes) {
-      if (typeof scene.estimatedMinutes !== 'number') {
-        // Calculate from durationSec or use default
-        scene.estimatedMinutes = Math.ceil(scene.durationSec / 60);
-        await tx.table('scenes').put(scene);
-      }
-    }
-  });
-
-// 4. Update validator
-function validateScene(scene: any): scene is Scene {
-  return (
-    // ... existing checks
-    typeof scene.estimatedMinutes === 'number' &&
-    scene.estimatedMinutes > 0
-  );
-}
-```
-
-Done! The app will automatically migrate existing scenes on next load.
