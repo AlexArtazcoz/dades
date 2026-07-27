@@ -126,8 +126,10 @@ Es manté la disciplina de `SCHEMA_MIGRATIONS.md` des del primer dia
   d'etiquetes entre repositoris a la vista sector/tot.
 - [ ] **Fase 6 — Còpia de seguretat i desplegament**
   Backup al GitHub (repo `dades-backup`) reutilitzant `backup.ts`, workflow de
-  Pages amb base `/dades/`. Pendent d'Alex: crear els dos repos i el token
-  fine-grained, com a SceneScript.
+  Pages amb base `/dades/`. El workflow està en manual (`workflow_dispatch`)
+  fins que hi hagi Pages: recuperar llavors el disparador de push. Pendent
+  d'Alex: crear el repo `dades-backup`, activar Pages (repo privat → cal pla
+  de pagament o fer públic `dades`) i generar el token fine-grained.
 
 ## Convencions i traps (heretades de SceneScript)
 
