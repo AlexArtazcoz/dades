@@ -91,8 +91,12 @@ function EntityModal({
       <div
         style={{
           position: 'fixed',
-          left: 235, top: '50%', transform: 'translateY(-50%)',
+          // left és el CENTRE: l'animació ref-dialog-in acaba en
+          // translate(-50%,-50%). En pantalles estretes es centra al viewport
+          // en lloc del punt fix del calaix, que s'hi sortiria.
+          left: 'min(235px, 50vw)', top: '50%', transform: 'translate(-50%, -50%)',
           width: 314,
+          maxWidth: 'calc(100vw - 24px)',
           borderRadius: 16,
           border: '0.5px solid var(--color-border)',
           background: 'white',

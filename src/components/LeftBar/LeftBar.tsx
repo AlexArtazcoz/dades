@@ -1,28 +1,18 @@
-import { useLayoutEffect, useRef, useState } from 'react';
-import { PenIcon, MenuIcon, ImportMenuIcon, ExportMenuIcon } from '../Icons';
+import { useLayoutEffect, useRef } from 'react';
+import { MenuIcon } from '../Icons';
 import { useDadesStore } from '../../stores/dadesStore';
 import { useUIStore } from '../../stores/uiStore';
-import { exportAllData, importAllData, downloadJson, pickAndReadJsonFile } from '../../services/db';
+
+/* La barra esquerra: només el títol vertical de la vista i la hamburguesa.
+   Res més — importar/exportar viuen a Configuració i el comptador s'ha tret
+   perquè la galeria ja diu tota sola quantes referències hi ha. */
 
 export function LeftBar() {
-  const { sectors, repositoris, activeView, getSector, getRepositori, getVisibleReferencies, loadAll } =
-    useDadesStore();
-  const { sidebarOpen, sidebarClosing, toggleSidebar, addToast } = useUIStore();
-
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuClosing, setMenuClosing] = useState(false);
-  const [importing, setImporting] = useState(false);
+  const { activeView, getSector, getRepositori } = useDadesStore();
+  const { sidebarOpen, sidebarClosing, toggleSidebar } = useUIStore();
 
   const titleAreaRef = useRef<HTMLDivElement>(null);
   const titleInnerRef = useRef<HTMLDivElement>(null);
-
-  const closeMenu = () => {
-    setMenuClosing(true);
-    setTimeout(() => {
-      setMenuOpen(false);
-      setMenuClosing(false);
-    }, 150);
-  };
 
   // Títol i subtítol de la vista activa
   const repositori = activeView.mode === 'repositori' ? getRepositori(activeView.id) : undefined;
@@ -31,11 +21,9 @@ export function LeftBar() {
     : repositori ? getSector(repositori.sectorId)
     : undefined;
   const title =
-    activeView.mode === 'tot' ? (sectors.length > 0 ? 'Tot' : '')
+    activeView.mode === 'tot' ? 'Tot'
     : repositori?.name ?? sector?.name ?? '';
   const subtitle = repositori ? sector?.name ?? '' : '';
-
-  const visibles = getVisibleReferencies();
 
   // Encongeix el títol vertical fins que capi a l'alçada que queda a la barra.
   // El text vertical escala amb el font-size, així que una passada de ràtio
@@ -78,96 +66,9 @@ export function LeftBar() {
     return () => observer.disconnect();
   }, [title, subtitle]);
 
-  const handleExport = async () => {
-    try {
-      const data = await exportAllData();
-      downloadJson(data);
-      addToast({
-        type: 'success',
-        message: `Exportats ${data.repositoris.length} repositoris i ${data.referencies.length} referències`,
-      });
-    } catch {
-      addToast({ type: 'error', message: 'L\'exportació ha fallat' });
-    }
-    closeMenu();
-  };
-
-  const handleImport = async () => {
-    try {
-      setImporting(true);
-      const data = await pickAndReadJsonFile();
-      await importAllData(data, 'replace');
-      await loadAll();
-      addToast({ type: 'success', message: 'Importació completada' });
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : '';
-      if (msg !== 'Cancelled') {
-        addToast({ type: 'error', message: msg || 'La importació ha fallat' });
-      }
-    } finally {
-      setImporting(false);
-      closeMenu();
-    }
-  };
-
   return (
     <div className={`left-bar fixed left-0 top-0 bg-[var(--color-bg)] border-r border-[var(--color-border)] z-30 flex flex-col ${sidebarOpen ? 'sidebar-open' : ''} ${sidebarClosing ? 'sidebar-closing' : ''}`}>
-      {/* ── Part alta ── */}
-      <div className="flex flex-col items-center w-full shrink-0">
-
-        {/* Separador superior — mateixa alineació que SceneScript */}
-        <div className="h-[80px]" />
-
-        {/* Boli — obre el menú d'import/export */}
-        <div className="relative flex items-center justify-center h-[48px]">
-          <button
-            onClick={() => (menuOpen ? closeMenu() : setMenuOpen(true))}
-            className="text-[var(--color-black)] hover:text-[var(--color-accent-text)] transition-colors"
-            title="Menú"
-          >
-            <PenIcon forceHovered={menuOpen} />
-          </button>
-
-          {/* Menú desplegable — squircle */}
-          {menuOpen && (
-            <div className={`generate-menu absolute left-full ml-2 top-0 z-50${menuClosing ? ' is-closing' : ''}`}>
-              <button onClick={handleImport} disabled={importing} className="generate-menu-item disabled:opacity-40">
-                <ImportMenuIcon size={24} />
-                Importa
-              </button>
-              <button onClick={handleExport} className="generate-menu-item">
-                <ExportMenuIcon size={24} />
-                Exporta
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="h-[66px]" />
-
-        {/* Comptador de la vista activa — el pill on SceneScript tenia el runtime */}
-        {(sectors.length > 0 || repositoris.length > 0) && (
-          <div className="flex justify-center relative w-full">
-            <span
-              className="subheading"
-              style={{
-                color: 'var(--color-text-muted)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 10,
-                padding: '7px 12px',
-                lineHeight: 1,
-              }}
-              title="Referències a la vista"
-            >
-              {visibles.length} ref
-            </span>
-          </div>
-        )}
-
-        <div className="h-[40px]" />
-      </div>
-
-      {/* ── Títol vertical de la vista activa ── */}
+      {/* ── Títol vertical de la vista activa — centrat a la columna ── */}
       <div
         ref={titleAreaRef}
         className="left-bar-title-area flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
@@ -222,11 +123,6 @@ export function LeftBar() {
           <MenuIcon size={24} />
         </button>
       </div>
-
-      {/* Clic fora per tancar el menú */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-40" onClick={closeMenu} />
-      )}
     </div>
   );
 }

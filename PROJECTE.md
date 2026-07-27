@@ -151,7 +151,7 @@ Es manté la disciplina de `SCHEMA_MIGRATIONS.md` des del primer dia
   referència. El paste s'ignora dins de camps de text i amb modals oberts.
   Verificat al navegador: drop de 3 fitxers (2 creats, .txt rebutjat),
   paste d'imatge i d'enllaç, fitxa desada amb etiquetes i vel visible.
-- [x] **Fase 5 — Filtres i cerca**
+- [~] **Fase 5 — Filtres i cerca** *(retirada de la UI el 27-jul)*
   Barra enganxosa a dalt de la galeria: cercador (títol, nota, domini i
   etiquetes; sense distingir accents ni majúscules — `norm()` amb NFD) i
   chips de totes les etiquetes de la vista amb comptador, **AND** entre
@@ -163,6 +163,9 @@ Es manté la disciplina de `SCHEMA_MIGRATIONS.md` des del primer dia
   retallada escriuria un `referenceOrder` amb només els elements visibles.
   Verificat al navegador: cerca «seccio» → «Secció constructiva», AND de
   chips (3d+tipografia → 1 de 7) i reinici en canviar de vista.
+  **Retirada a petició d'Alex**: no vol res a sobre de la galeria. El codi és
+  al commit e43e8ba si algun dia es vol recuperar, però caldrà posar-lo en un
+  altre lloc (el calaix, per exemple), no damunt de les referències.
 - [x] **Fase 6 — Còpia de seguretat i desplegament** *(codi fet; 2 passos manuals pendents)*
   `SettingsModal` recuperat de SceneScript (només la secció de còpies, en
   català, centrat a pantalla): repo/token amb ull per mostrar-lo, còpia
@@ -202,6 +205,24 @@ Regla: **sobre el beix sempre hi va tinta** (`--color-black`), mai blanc — amb
 blanc no es llegeix. Els únics fons foscos que queden són deliberats i van
 sempre a sobre d'una imatge, que pot ser de qualsevol color: el vel del títol
 a les fitxes amb foto, la capa d'accions de les miniatures i el toast.
+
+## Estructura de la pantalla
+
+- **Barra esquerra**: només el títol vertical de la vista (centrat a la
+  columna, amb el sector en beix a sota) i la hamburguesa. Res més: el boli
+  amb import/export i el comptador de referències es van treure el 27-jul.
+- **Foli de referències** (`.gallery-sheet`): té el **seu propi scroll**
+  (`html` porta `overflow:hidden`, la pàgina no en té) i **es desplaça amb el
+  calaix** reutilitzant les animacions `main-content-open/close` de
+  SceneScript, en lloc de quedar-se a sota.
+- **Calaix**: sectors, repositoris i, a baix, crear sector i Configuració
+  (còpia al GitHub + importar/exportar fitxer).
+- **Mòbil** (≤640px): barra de 72px, foli amb 16px de marge i graella de
+  **dues columnes** (`column-width: 125px`) — l'objectiu és veure moltes
+  referències d'un cop d'ull, i una sola columna obligava a massa scroll. El
+  modal de sector/repositori es centra al viewport (`left: min(235px, 50vw)`;
+  compte: `left` és el centre, perquè `ref-dialog-in` acaba en
+  `translate(-50%,-50%)`).
 
 ## Convencions i traps (heretades de SceneScript)
 

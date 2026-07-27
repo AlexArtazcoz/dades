@@ -11,6 +11,7 @@ import {
   runBackup,
   restoreFromGitHub,
 } from '../services/backup';
+import { exportAllData, importAllData, downloadJson, pickAndReadJsonFile } from '../services/db';
 
 const inputStyle: React.CSSProperties = {
   height: 40, borderRadius: 8, border: '0.5px solid var(--color-border)',
@@ -36,6 +37,7 @@ export function SettingsModal() {
   const [backupBusy, setBackupBusy] = useState<'backup' | 'restore' | null>(null);
   const [restoreArmed, setRestoreArmed] = useState(false);
   const [backupStatus, setBackupStatus] = useState(() => getBackupState());
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     if (settingsModalOpen) {
@@ -101,6 +103,37 @@ export function SettingsModal() {
       });
     } finally {
       setBackupBusy(null);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const data = await exportAllData();
+      downloadJson(data);
+      addToast({
+        type: 'success',
+        message: `Exportats ${data.repositoris.length} repositoris i ${data.referencies.length} referències`,
+      });
+    } catch {
+      addToast({ type: 'error', message: 'L\'exportació ha fallat' });
+    }
+  };
+
+  const handleImport = async () => {
+    try {
+      setImporting(true);
+      const data = await pickAndReadJsonFile();
+      await importAllData(data, 'replace');
+      await loadAll();
+      addToast({ type: 'success', message: 'Importació completada' });
+      setSettingsModalOpen(false);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '';
+      if (msg !== 'Cancelled') {
+        addToast({ type: 'error', message: msg || 'La importació ha fallat' });
+      }
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -234,6 +267,36 @@ export function SettingsModal() {
                 {restoreArmed ? 'Segur? Substitueix tot' : 'Restaura'}
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Còpia en un fitxer — abans al menú del boli de la barra esquerra */}
+        <div style={{ borderTop: '0.5px solid var(--color-border)', paddingTop: 16 }}>
+          <span style={{ ...labelStyle, marginBottom: 10 }}>Fitxer</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={handleImport}
+              disabled={importing}
+              style={{
+                flex: 1, height: 36, borderRadius: 8,
+                border: '0.5px solid var(--color-border)', background: 'transparent',
+                cursor: 'pointer', fontSize: 12, fontWeight: 500,
+                opacity: importing ? 0.5 : 1,
+              }}
+              title="Substitueix les dades locals per les d'un fitxer exportat"
+            >
+              Importa
+            </button>
+            <button
+              onClick={handleExport}
+              style={{
+                flex: 1, height: 36, borderRadius: 8,
+                border: '0.5px solid var(--color-border)', background: 'transparent',
+                cursor: 'pointer', fontSize: 12, fontWeight: 500,
+              }}
+            >
+              Exporta
+            </button>
           </div>
         </div>
 

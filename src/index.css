@@ -484,6 +484,12 @@ button {
 .left-bar-title-area {
   scrollbar-width: none;
   -ms-overflow-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.left-bar-title-area > * {
+  margin: auto 0;
 }
 
 .left-bar-title-area::-webkit-scrollbar {
@@ -801,6 +807,57 @@ button {
 
 .generate-menu-item:hover svg {
   color: var(--color-accent-text);
+}
+
+/* ── El foli de referències ──
+   Es desplaça amb el calaix (les mateixes animacions que la barra esquerra)
+   en lloc de quedar-s'hi a sota, i porta el seu propi scroll: html té
+   overflow:hidden, així que la pàgina no en té. */
+.gallery-sheet {
+  position: relative;
+  z-index: 25;
+  margin-left: var(--leftbar-w);
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  background: var(--color-bg);
+  padding: 24px 24px 48px;
+}
+
+/* La graella. Al mòbil, dues columnes: l'objectiu de l'app és veure moltes
+   referències d'un cop d'ull, i una sola columna obliga a fer molt scroll. */
+.gallery-grid {
+  column-width: 250px;
+  column-gap: 16px;
+}
+
+.gallery-card {
+  break-inside: avoid;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 640px) {
+  .gallery-sheet {
+    padding: 16px 16px 32px;
+  }
+  .gallery-grid {
+    column-width: 125px;
+    column-gap: 10px;
+  }
+  .gallery-card {
+    margin-bottom: 10px;
+  }
+}
+
+.gallery-sheet.sidebar-open {
+  margin-left: var(--panel-open-offset);
+  animation: main-content-open 0.6s linear forwards;
+}
+
+.gallery-sheet.sidebar-open.sidebar-closing {
+  animation: main-content-close 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 /* Scripts sidebar — sits at left:0, wide, with right border.

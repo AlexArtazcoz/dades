@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -10,14 +10,13 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Link as LinkIcon, Pencil, Search, X } from 'lucide-react';
+import { Link as LinkIcon, Pencil } from 'lucide-react';
 import { AttachmentViewer } from '../Attachments/AttachmentViewer';
 import { ReferenciaModal } from './ReferenciaModal';
 import { isImageAttachment, useBlobUrl } from '../Attachments/attachmentUtils';
 import { useDadesStore } from '../../stores/dadesStore';
 import { useUIStore } from '../../stores/uiStore';
 import { DEVICE_HAS_HOVER } from '../../utils/interaction';
-import { LEFTBAR_W } from '../../constants';
 import type { Attachment, Referencia } from '../../types';
 
 /* La galeria: graella masonry amb les referències de la vista activa.
@@ -33,11 +32,6 @@ function domainOf(url: string): string {
   } catch {
     return '';
   }
-}
-
-// Cerca sense accents ni majúscules: "secció" i "seccio" han de trobar el mateix
-function norm(s: string): string {
-  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
 // Els adjunts d'una referència en ordre de visor: portada primer, resta per antiguitat
@@ -80,8 +74,6 @@ function GalleryCard({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.35 : 1,
-    breakInside: 'avoid',
-    marginBottom: 16,
   };
 
   // Peu en tinta per a les fitxes que no són una imatge: sobre paper, el vel
@@ -115,7 +107,7 @@ function GalleryCard({
       style={style}
       {...attributes}
       {...listeners}
-      className="group relative rounded-xl overflow-hidden cursor-pointer bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors"
+      className="gallery-card group relative rounded-xl overflow-hidden cursor-pointer bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors"
       onClick={onOpen}
       title={caption}
     >
@@ -228,7 +220,7 @@ export function Gallery() {
     reorderReferencies, deleteAttachment, renameAttachment,
     ingestFiles, createReferencia,
   } = useDadesStore();
-  const { addToast } = useUIStore();
+  const { addToast, sidebarOpen, sidebarClosing } = useUIStore();
 
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -236,31 +228,8 @@ export function Gallery() {
   // Comptador enter/leave: el dragleave salta a cada fill que es travessa
   const [dragDepth, setDragDepth] = useState(0);
 
-  // Cerca i filtre per etiquetes — es reinicien en canviar de vista
-  const [query, setQuery] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const searchRef = useRef<HTMLInputElement>(null);
-
   const repoId = activeView.mode === 'repositori' ? activeView.id : null;
   const activeRepositori = repoId ? getRepositori(repoId) : undefined;
-
-  useEffect(() => {
-    setQuery('');
-    setSelectedTags([]);
-  }, [activeView]);
-
-  // «/» enfoca el cercador des de qualsevol lloc de la galeria
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== '/' || editingId || viewerIndex !== null) return;
-      const target = e.target instanceof HTMLElement ? e.target : null;
-      if (target?.closest('input, textarea, [contenteditable="true"]')) return;
-      e.preventDefault();
-      searchRef.current?.focus();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [editingId, viewerIndex]);
 
   // Els adjunts de la vista es (re)carreguen quan canvia la vista o les dades
   useEffect(() => {
@@ -269,38 +238,10 @@ export function Gallery() {
 
   const visibles = getVisibleReferencies();
 
-  // === Filtres: cerca (títol/nota/domini/etiquetes) + etiquetes en AND ===
-
-  const filtering = query.trim() !== '' || selectedTags.length > 0;
-
-  const filtered = useMemo(() => {
-    if (!filtering) return visibles;
-    const q = norm(query.trim());
-    return visibles.filter(r => {
-      if (selectedTags.length > 0 && !selectedTags.every(t => r.tags.includes(t))) return false;
-      if (!q) return true;
-      return (
-        norm(r.title).includes(q) ||
-        norm(r.note).includes(q) ||
-        norm(domainOf(r.url)).includes(q) ||
-        r.tags.some(t => norm(t).includes(q))
-      );
-    });
-  }, [visibles, filtering, query, selectedTags]);
-
-  // Les etiquetes de la vista (sense filtrar), amb comptador, per als chips
-  const tagCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const r of visibles) {
-      for (const t of r.tags) counts.set(t, (counts.get(t) ?? 0) + 1);
-    }
-    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [visibles]);
-
-  // Llista plana per al visor: tots els adjunts de la vista filtrada, en ordre de galeria
+  // Llista plana per al visor: tots els adjunts de la vista, en ordre de galeria
   const viewerList = useMemo(
-    () => filtered.flatMap(r => attachmentsOfRef(r, attachments)),
-    [filtered, attachments],
+    () => visibles.flatMap(r => attachmentsOfRef(r, attachments)),
+    [visibles, attachments],
   );
 
   const coverOf = (referencia: Referencia): Attachment | null =>
@@ -318,6 +259,10 @@ export function Gallery() {
   };
 
   const isRepositoriView = activeView.mode === 'repositori';
+  // El foli es desplaça amb el calaix en lloc de quedar-s'hi a sota
+  const sheetClass = `gallery-sheet${sidebarOpen ? ' sidebar-open' : ''}${
+    sidebarClosing ? ' sidebar-closing' : ''
+  }`;
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   // === Ingesta: fitxers deixats anar o enganxats a la vista de repositori ===
@@ -393,27 +338,28 @@ export function Gallery() {
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveDragId(null);
     if (!isRepositoriView || activeView.mode !== 'repositori') return;
-    // Amb filtre actiu no es reordena: escriuríem un referenceOrder retallat
-    if (filtering) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const ids = filtered.map(r => r.id);
+    const ids = visibles.map(r => r.id);
     const from = ids.indexOf(active.id as string);
     const to = ids.indexOf(over.id as string);
     if (from === -1 || to === -1) return;
     reorderReferencies(activeView.id, arrayMove(ids, from, to));
   };
 
-  const draggedRef = activeDragId ? filtered.find(r => r.id === activeDragId) : null;
+  const draggedRef = activeDragId ? visibles.find(r => r.id === activeDragId) : null;
   const editingRef = editingId ? referencies.find(r => r.id === editingId) : null;
 
   // Vel que apareix mentre s'arrossega un fitxer per sobre de la galeria
   const dragVeil = dragDepth > 0 && activeRepositori && (
     <div
       className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none"
-      style={{ paddingLeft: LEFTBAR_W }}
+      style={{ paddingLeft: 'var(--leftbar-w)' }}
     >
-      <div className="absolute inset-y-0 right-0" style={{ left: LEFTBAR_W, background: 'rgba(255,255,255,0.86)' }} />
+      <div
+        className="absolute inset-y-0 right-0"
+        style={{ left: 'var(--leftbar-w)', background: 'rgba(255,255,255,0.86)' }}
+      />
       <div
         className="relative rounded-2xl px-8 py-6 text-center"
         style={{ border: '2px dashed var(--color-accent)', background: 'var(--color-surface)' }}
@@ -428,11 +374,7 @@ export function Gallery() {
 
   if (repositoris.length > 0 && visibles.length === 0) {
     return (
-      <main
-        className="min-h-screen flex items-center justify-center px-6"
-        style={{ paddingLeft: LEFTBAR_W + 24 }}
-        {...dropHandlers}
-      >
+      <main className={sheetClass + ' flex items-center justify-center'} {...dropHandlers}>
         <p className="text-sm text-[var(--color-text-muted)] text-center max-w-[360px]">
           {isRepositoriView
             ? 'Aquest repositori encara és buit. Arrossega-hi imatges o PDFs, o enganxa\'ls amb Cmd+V (també un enllaç).'
@@ -443,7 +385,7 @@ export function Gallery() {
     );
   }
 
-  const cards = filtered.map(referencia => {
+  const cards = visibles.map(referencia => {
     const repositori = getRepositori(referencia.repositoriId);
     return (
       <GalleryCard
@@ -451,7 +393,7 @@ export function Gallery() {
         referencia={referencia}
         cover={coverOf(referencia)}
         subtitle={isRepositoriView ? '' : repositori?.name ?? ''}
-        sortable={isRepositoriView && !filtering}
+        sortable={isRepositoriView}
         onOpen={() => openCard(referencia)}
         onEdit={() => setEditingId(referencia.id)}
       />
@@ -459,74 +401,8 @@ export function Gallery() {
   });
 
   return (
-    <main
-      className="min-h-screen"
-      style={{ paddingLeft: LEFTBAR_W + 24, paddingRight: 24, paddingTop: 24, paddingBottom: 48 }}
-      {...dropHandlers}
-    >
-      {/* Barra de cerca i etiquetes — enganxada a dalt mentre es fa scroll */}
-      <div
-        className="sticky top-0 z-30 -mx-2 px-2 pb-3 pt-2"
-        style={{ background: 'linear-gradient(var(--color-bg) 78%, transparent)' }}
-      >
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] pointer-events-none" />
-            <input
-              ref={searchRef}
-              type="text"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Escape') { setQuery(''); (e.target as HTMLInputElement).blur(); }
-              }}
-              placeholder="Cerca…  ( / )"
-              className="h-8 w-[200px] rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] focus:border-[var(--color-accent)] outline-none text-[12px] text-[var(--color-black)] placeholder-[var(--color-text-faint)] pl-8 pr-3 transition-colors"
-            />
-          </div>
-
-          {/* Chips d'etiquetes de la vista, amb comptador; AND entre seleccionades */}
-          {tagCounts.map(([tag, count]) => {
-            const isOn = selectedTags.includes(tag);
-            return (
-              <button
-                key={tag}
-                onClick={() =>
-                  setSelectedTags(isOn ? selectedTags.filter(t => t !== tag) : [...selectedTags, tag])
-                }
-                className="h-8 px-3 rounded-lg text-[11px] font-medium transition-colors"
-                style={
-                  isOn
-                    ? { background: 'var(--color-accent)', color: 'var(--color-black)' }
-                    : { background: 'var(--color-surface)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }
-                }
-                title={isOn ? 'Treu el filtre' : 'Filtra per aquesta etiqueta'}
-              >
-                {tag}
-                <span className="ml-1.5" style={{ opacity: 0.55 }}>{count}</span>
-              </button>
-            );
-          })}
-
-          {filtering && (
-            <button
-              onClick={() => { setQuery(''); setSelectedTags([]); }}
-              className="h-8 flex items-center gap-1 text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-black)] transition-colors"
-              title="Neteja els filtres"
-            >
-              <X size={12} />
-              {filtered.length} de {visibles.length}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {filtered.length === 0 ? (
-        <div className="flex items-center justify-center" style={{ minHeight: '50vh' }}>
-          <p className="text-sm text-[var(--color-text-muted)]">Cap referència no coincideix amb el filtre.</p>
-        </div>
-      ) : (
-      <div style={{ columnWidth: 250, columnGap: 16 }}>
+    <main className={sheetClass} {...dropHandlers}>
+      <div className="gallery-grid">
         {isRepositoriView ? (
           <DndContext
             sensors={sensors}
@@ -534,7 +410,7 @@ export function Gallery() {
             onDragEnd={handleDragEnd}
             onDragCancel={() => setActiveDragId(null)}
           >
-            <SortableContext items={filtered.map(r => r.id)} strategy={rectSortingStrategy}>
+            <SortableContext items={visibles.map(r => r.id)} strategy={rectSortingStrategy}>
               {cards}
             </SortableContext>
             <DragOverlay>
@@ -545,7 +421,6 @@ export function Gallery() {
           cards
         )}
       </div>
-      )}
 
       {/* Visor a pantalla completa — recorre tots els adjunts de la vista */}
       {viewerIndex !== null && viewerList[viewerIndex] && (
