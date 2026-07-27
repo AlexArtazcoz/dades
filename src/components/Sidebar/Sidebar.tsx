@@ -1,0 +1,631 @@
+import { useState, useEffect, useRef } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { DeleteIcon, DragIcon, EditIcon, NewSceneIcon, Config50Icon } from '../Icons';
+import { useScriptStore } from '../../stores/scriptStore';
+import { useUIStore } from '../../stores/uiStore';
+import { resolveActiveCategory } from '../../utils/projectTemplate';
+import { DEVICE_HAS_HOVER } from '../../utils/interaction';
+import type { Script, ScriptStatus } from '../../types';
+
+const STATUS_ORDER: ScriptStatus[] = ['backlog', 'in-progress', 'done'];
+const STATUS_LABELS: Record<ScriptStatus, string> = {
+  'backlog': 'Backlog',
+  'in-progress': 'In Progress',
+  'done': 'Done',
+};
+
+/* ── Script Settings Modal ── */
+function ScriptSettingsModal({
+  mode,
+  script,
+  onClose,
+  onSave,
+}: {
+  mode: 'create' | 'edit';
+  script?: Script;
+  onClose: () => void;
+  onSave: (name: string, titleJP: string) => void;
+}) {
+  const [name, setName] = useState(script?.name ?? '');
+  const [titleJP, setTitleJP] = useState(script?.titleJP ?? '');
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    nameRef.current?.focus();
+  }, []);
+
+  // Close on Escape, block outside close via overlay click
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  const handleSubmit = () => {
+    if (name.trim()) onSave(name.trim(), titleJP.trim());
+  };
+
+  const isDisabled = !name.trim();
+
+  return (
+    <div
+      className="fixed inset-0 z-50"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="absolute inset-0 bg-black/40" />
+      {/* Centered within the 400px script panel */}
+      <div
+        style={{
+          position: 'fixed',
+          left: 235, top: '50%',
+          width: 314,
+          borderRadius: 16,
+          border: '0.5px solid #E6E6E6',
+          background: 'white',
+          padding: 16,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+          animation: 'ref-dialog-in 0.25s cubic-bezier(0.2, 0, 0, 1) both',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+          <div style={{ height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontFamily: 'var(--font-headline)', fontSize: 18, textTransform: 'uppercase' }}>
+              {mode === 'create' ? 'New Script' : 'Edit Script'}
+            </span>
+          </div>
+
+          <input
+            ref={nameRef}
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); }}
+            placeholder="English title"
+            style={{
+              height: 40, borderRadius: 8, border: '0.5px solid #E6E6E6',
+              paddingLeft: 10, fontSize: 13, outline: 'none', flexShrink: 0,
+              margin: 0, background: 'transparent', fontWeight: 500,
+            }}
+          />
+
+          <input
+            type="text"
+            value={titleJP}
+            onChange={e => setTitleJP(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); }}
+            placeholder="日本語タイトル"
+            style={{
+              height: 40, borderRadius: 8, border: '0.5px solid #E6E6E6',
+              paddingLeft: 10, fontSize: 13, outline: 'none', flexShrink: 0,
+              margin: 0, background: 'transparent', fontWeight: 500,
+            }}
+          />
+
+          <div style={{ display: 'flex', gap: 16, flexShrink: 0 }}>
+            <button
+              onClick={onClose}
+              style={{
+                flex: 1, height: 40, borderRadius: 8,
+                border: '0.5px solid #E6E6E6', background: 'transparent',
+                cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#7C7C7C',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={isDisabled}
+              style={{
+                flex: 1, height: 40, borderRadius: 8,
+                background: isDisabled ? '#E6E6E6' : 'var(--color-accent)',
+                color: 'white',
+                border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
+              }}
+            >
+              {mode === 'create' ? 'Create' : 'Save'}
+            </button>
+          </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Category sub-list — expands under a project with a staggered reveal ── */
+function ScriptCategoryList({
+  script,
+  isExpanded,
+  isScriptActive,
+  activeCategoryId,
+  onSelectCategory,
+  onRenameCategory,
+}: {
+  script: Script;
+  isExpanded: boolean;
+  isScriptActive: boolean;
+  activeCategoryId: string | null;
+  onSelectCategory: (categoryId: string) => void;
+  onRenameCategory: (categoryId: string, name: string) => void;
+}) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingId) inputRef.current?.select();
+  }, [editingId]);
+
+  const commitEdit = () => {
+    if (editingId && draftName.trim()) {
+      onRenameCategory(editingId, draftName);
+    }
+    setEditingId(null);
+  };
+
+  // Which category would the board show for this project right now
+  const resolvedActive = isScriptActive
+    ? resolveActiveCategory(script.categories, activeCategoryId)
+    : null;
+
+  return (
+    <div className={`script-categories ${isExpanded ? 'is-expanded' : ''}`}>
+      <div>
+        <div className="script-categories-inner">
+          {(script.categories ?? []).map((cat, i) => {
+            const isActive = resolvedActive?.id === cat.id;
+            if (cat.id === editingId) {
+              return (
+                <input
+                  key={cat.id}
+                  ref={inputRef}
+                  value={draftName}
+                  maxLength={28}
+                  onChange={e => setDraftName(e.target.value)}
+                  onBlur={commitEdit}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') commitEdit();
+                    if (e.key === 'Escape') setEditingId(null);
+                    e.stopPropagation();
+                  }}
+                  onClick={e => e.stopPropagation()}
+                  className="script-category-item is-editing"
+                  style={{ ['--i' as string]: i }}
+                />
+              );
+            }
+            return (
+              <button
+                key={cat.id}
+                className={`script-category-item ${isActive ? 'is-active' : ''}`}
+                style={{ ['--i' as string]: i }}
+                onClick={e => { e.stopPropagation(); onSelectCategory(cat.id); }}
+                onDoubleClick={e => {
+                  e.stopPropagation();
+                  setEditingId(cat.id);
+                  setDraftName(cat.name);
+                }}
+                title="Doble clic per renombrar"
+              >
+                {cat.name}
+                {cat.sceneOrder.length > 0 && (
+                  <span className="script-category-count">{cat.sceneOrder.length}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Single sortable script row ── */
+function SortableScriptItem({
+  script,
+  isActive: _isActive,
+  confirmingDeleteId,
+  isExpanded,
+  activeCategoryId,
+  onToggleExpand,
+  onSelectCategory,
+  onRenameCategory,
+  onEdit,
+  onRequestDelete,
+  onConfirmDelete,
+  onCancelDelete,
+}: {
+  script: Script;
+  isActive: boolean;
+  confirmingDeleteId: string | null;
+  isExpanded: boolean;
+  activeCategoryId: string | null;
+  onToggleExpand: (id: string) => void;
+  onSelectCategory: (scriptId: string, categoryId: string) => void;
+  onRenameCategory: (scriptId: string, categoryId: string, name: string) => void;
+  onEdit: (script: Script) => void;
+  onRequestDelete: (id: string) => void;
+  onConfirmDelete: (id: string) => void;
+  onCancelDelete: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: script.id });
+
+  const [hovered, setHovered] = useState(false);
+  const isConfirming = confirmingDeleteId === script.id;
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      {isConfirming ? (
+        <div className="flex items-center gap-2 py-[8px] min-h-[40px]">
+          <span
+            className="flex-1 min-w-0 truncate text-red-400 text-[13px]"
+            style={{ fontFamily: 'var(--font-headline)' }}
+          >
+            Delete?
+          </span>
+          <button
+            onClick={() => onConfirmDelete(script.id)}
+            className="px-2.5 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-[11px] rounded-md transition-colors"
+          >
+            Delete
+          </button>
+          <button
+            onClick={onCancelDelete}
+            className="px-2.5 py-1 bg-white/10 hover:bg-white/15 text-white/50 text-[11px] rounded-md transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <>
+        <div
+          className="group flex items-center py-[8px] min-h-[40px] cursor-pointer relative"
+          // En tàctil no seguim el hover: si el primer toc canvia l'estil,
+          // iOS se'l queda com a "hover" i el clic no arriba mai.
+          onMouseEnter={DEVICE_HAS_HOVER ? () => setHovered(true) : undefined}
+          onMouseLeave={DEVICE_HAS_HOVER ? () => setHovered(false) : undefined}
+          onClick={() => onToggleExpand(script.id)}
+        >
+          {/* Active indicator dot — positioned absolutely so it doesn't shift layout */}
+          <div
+            style={{
+              position: 'absolute',
+              left: -12,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              width: 5,
+              height: 5,
+              borderRadius: '50%',
+              background: 'var(--color-accent)',
+              opacity: _isActive ? 1 : 0,
+              transition: 'opacity 0.15s ease',
+            }}
+          />
+          {/* Script name */}
+          <span
+            className="flex-1 min-w-0 truncate text-[26px] leading-[1.05] uppercase transition-colors"
+            style={{
+              fontFamily: 'var(--font-headline)',
+              color: (_isActive || hovered) ? 'var(--color-accent)' : 'white',
+            }}
+          >
+            {script.name}
+          </span>
+
+          {/* Hover icons: delete / edit / drag — sempre visibles en tàctil */}
+          <div
+            className="flex items-center gap-1 flex-shrink-0"
+            style={{
+              opacity: hovered || !DEVICE_HAS_HOVER ? 1 : 0,
+              transition: 'opacity 0.15s ease',
+              pointerEvents: hovered || !DEVICE_HAS_HOVER ? 'auto' : 'none',
+            }}
+          >
+            <button
+              onClick={e => { e.stopPropagation(); onRequestDelete(script.id); }}
+              onPointerDown={e => e.stopPropagation()}
+              className="p-0.5 text-white/30 hover:text-red-400 transition-colors"
+              title="Delete"
+            >
+              <DeleteIcon size={24} />
+            </button>
+            <button
+              onClick={e => { e.stopPropagation(); onEdit(script); }}
+              onPointerDown={e => e.stopPropagation()}
+              className="p-0.5 text-white/30 hover:text-white transition-colors"
+              title="Edit"
+            >
+              <EditIcon size={24} />
+            </button>
+            <button
+              {...listeners}
+              {...attributes}
+              onPointerDown={e => { e.stopPropagation(); (listeners as { onPointerDown?: (e: React.PointerEvent) => void })?.onPointerDown?.(e); }}
+              className="p-0.5 text-white/30 hover:text-white transition-colors cursor-grab active:cursor-grabbing"
+              title="Reorder"
+            >
+              <DragIcon size={24} />
+            </button>
+          </div>
+        </div>
+
+        {/* Project phases — revealed when the project row is clicked */}
+        <ScriptCategoryList
+          script={script}
+          isExpanded={isExpanded}
+          isScriptActive={_isActive}
+          activeCategoryId={activeCategoryId}
+          onSelectCategory={catId => onSelectCategory(script.id, catId)}
+          onRenameCategory={(catId, name) => onRenameCategory(script.id, catId, name)}
+        />
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ── Droppable category section ── */
+function CategorySection({
+  status,
+  activeDragId,
+  children,
+}: {
+  status: ScriptStatus;
+  activeDragId: string | null;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: status });
+  return (
+    <div className="mb-6">
+      <div className="subheading mb-3">{STATUS_LABELS[status]}</div>
+      <div
+        ref={setNodeRef}
+        className={`min-h-[8px] rounded transition-colors duration-150 ${
+          isOver && activeDragId ? 'bg-white/5' : ''
+        }`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ── Main Sidebar ── */
+export function Sidebar() {
+  const {
+    scripts,
+    activeScriptId,
+    createScript,
+    deleteScript,
+    updateScript,
+    setActiveScript,
+    renameCategory,
+  } = useScriptStore();
+
+  const {
+    sidebarOpen, sidebarClosing, setSidebarOpen, setPendingScriptSwitch,
+    addToast, setSettingsModalOpen, activeCategoryId, setActiveCategory,
+  } = useUIStore();
+
+  // Modal: null = closed, 'create' = new script, Script = edit existing
+  const [modalTarget, setModalTarget] = useState<null | 'create' | Script>(null);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+  // Which project shows its phase list. Default: the active project, so you
+  // see where you are; clicking a project overrides (null = all collapsed).
+  const [expandedOverride, setExpandedOverride] = useState<string | null | undefined>(undefined);
+  const expandedScriptId = expandedOverride === undefined ? activeScriptId : expandedOverride;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  // Group scripts by status
+  const grouped: Record<ScriptStatus, Script[]> = {
+    'backlog': [],
+    'in-progress': [],
+    'done': [],
+  };
+  for (const s of scripts) {
+    grouped[s.status ?? 'backlog'].push(s);
+  }
+
+  const handleToggleExpand = (id: string) => {
+    setExpandedOverride(expandedScriptId === id ? null : id);
+  };
+
+  // Clicking a phase opens that project on that phase and closes the drawer
+  const handleSelectCategory = (scriptId: string, categoryId: string) => {
+    setActiveCategory(categoryId);
+    setExpandedOverride(undefined); // next open: expand the (new) active project
+    setSidebarOpen(false);
+    if (scriptId !== activeScriptId) {
+      setPendingScriptSwitch(scriptId);
+    }
+  };
+
+  const handleModalSave = async (name: string, titleJP: string) => {
+    if (modalTarget === 'create') {
+      const script = await createScript(name);
+      await updateScript(script.id, { titleJP });
+      setModalTarget(null);
+      await setActiveScript(script.id);
+      setSidebarOpen(false);
+      addToast({ type: 'success', message: `Created "${name}"` });
+    } else if (modalTarget && typeof modalTarget === 'object') {
+      await updateScript(modalTarget.id, { name, titleJP });
+      setModalTarget(null);
+    }
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    if (!over) return;
+
+    const scriptId = active.id as string;
+    const overId = over.id as string;
+
+    // Determine target status: either dropped on a category zone or another script
+    let targetStatus: ScriptStatus | null = null;
+    if (STATUS_ORDER.includes(overId as ScriptStatus)) {
+      targetStatus = overId as ScriptStatus;
+    } else {
+      for (const status of STATUS_ORDER) {
+        if (grouped[status].some(s => s.id === overId)) {
+          targetStatus = status;
+          break;
+        }
+      }
+    }
+    if (!targetStatus) return;
+
+    const script = scripts.find(s => s.id === scriptId);
+    if (!script) return;
+    const currentStatus: ScriptStatus = script.status ?? 'backlog';
+    if (currentStatus !== targetStatus) {
+      await updateScript(scriptId, { status: targetStatus });
+    }
+  };
+
+  const draggedScript = activeDragId ? scripts.find(s => s.id === activeDragId) : null;
+
+  return (
+    <>
+      <div className={`scripts-sidebar ${sidebarOpen ? 'is-open' : ''} ${sidebarClosing ? 'is-closing' : ''}`}>
+        <div className="flex flex-col h-full relative">
+
+          {/* Scrollable script list — starts 94px from top */}
+          <div
+            className="flex-1 overflow-y-auto"
+            style={{ paddingTop: '94px', paddingLeft: '24px', paddingRight: '24px', paddingBottom: '160px' }}
+          >
+            <DndContext
+              sensors={sensors}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              {STATUS_ORDER.map(status => {
+                const group = grouped[status];
+                return (
+                  <CategorySection key={status} status={status} activeDragId={activeDragId}>
+                    <SortableContext
+                      items={group.map(s => s.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {group.length === 0 ? (
+                        <div className="text-white/15 text-[11px] py-1">—</div>
+                      ) : (
+                        group.map(script => (
+                          <SortableScriptItem
+                            key={script.id}
+                            script={script}
+                            isActive={script.id === activeScriptId}
+                            confirmingDeleteId={confirmingDeleteId}
+                            isExpanded={expandedScriptId === script.id}
+                            activeCategoryId={activeCategoryId}
+                            onToggleExpand={handleToggleExpand}
+                            onSelectCategory={handleSelectCategory}
+                            onRenameCategory={(scriptId, catId, name) => renameCategory(scriptId, catId, name)}
+                            onEdit={s => setModalTarget(s)}
+                            onRequestDelete={id => setConfirmingDeleteId(id)}
+                            onConfirmDelete={async id => {
+                              const s = scripts.find(s => s.id === id);
+                              await deleteScript(id);
+                              setConfirmingDeleteId(null);
+                              addToast({ type: 'success', message: `Deleted "${s?.name ?? 'Script'}"` });
+                            }}
+                            onCancelDelete={() => setConfirmingDeleteId(null)}
+                          />
+                        ))
+                      )}
+                    </SortableContext>
+                  </CategorySection>
+                );
+              })}
+
+              <DragOverlay>
+                {draggedScript ? (
+                  <div className="py-[8px]">
+                    <span
+                      className="text-[26px] leading-[1.05] uppercase text-[var(--color-accent)]"
+                      style={{ fontFamily: 'var(--font-headline)' }}
+                    >
+                      {draggedScript.name}
+                    </span>
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          </div>
+
+          {/* Icons — absolute, always 24px from bottom */}
+          <div style={{ position: 'absolute', bottom: 24, left: 24, display: 'flex', gap: 16, zIndex: 1 }}>
+            <button
+              onClick={() => setModalTarget('create')}
+              className="sidebar-icon-btn sidebar-icon-plus"
+              title="New script"
+            >
+              <NewSceneIcon size={50} />
+            </button>
+            <button
+              onClick={() => setSettingsModalOpen(true)}
+              className="sidebar-icon-btn sidebar-icon-settings"
+              title="Settings"
+            >
+              <Config50Icon />
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Script settings modal — rendered outside scripts-sidebar to avoid clipping */}
+      {modalTarget !== null && (
+        <ScriptSettingsModal
+          mode={modalTarget === 'create' ? 'create' : 'edit'}
+          script={typeof modalTarget === 'object' ? modalTarget : undefined}
+          onClose={() => setModalTarget(null)}
+          onSave={handleModalSave}
+        />
+      )}
+    </>
+  );
+}
