@@ -151,9 +151,18 @@ Es manté la disciplina de `SCHEMA_MIGRATIONS.md` des del primer dia
   referència. El paste s'ignora dins de camps de text i amb modals oberts.
   Verificat al navegador: drop de 3 fitxers (2 creats, .txt rebutjat),
   paste d'imatge i d'enllaç, fitxa desada amb etiquetes i vel visible.
-- [ ] **Fase 5 — Filtres i cerca**
-  Cerca per títol/nota/domini, filtre per etiquetes (chips), barreja
-  d'etiquetes entre repositoris a la vista sector/tot.
+- [x] **Fase 5 — Filtres i cerca**
+  Barra enganxosa a dalt de la galeria: cercador (títol, nota, domini i
+  etiquetes; sense distingir accents ni majúscules — `norm()` amb NFD) i
+  chips de totes les etiquetes de la vista amb comptador, **AND** entre
+  seleccionades, indicador «n de m» amb neteja ràpida. La tecla `/` enfoca
+  el cercador i Esc el buida. Els filtres es reinicien en canviar de vista i
+  funcionen a les tres (a sector/tot barregen etiquetes de tots els
+  repositoris). El visor recorre només el que passa el filtre. **La
+  reordenació s'apaga mentre hi ha filtre actiu**: reordenar la llista
+  retallada escriuria un `referenceOrder` amb només els elements visibles.
+  Verificat al navegador: cerca «seccio» → «Secció constructiva», AND de
+  chips (3d+tipografia → 1 de 7) i reinici en canviar de vista.
 - [ ] **Fase 6 — Còpia de seguretat i desplegament**
   Backup al GitHub (repo `dades-backup`) reutilitzant `backup.ts`, workflow de
   Pages amb base `/dades/`. El workflow està en manual (`workflow_dispatch`)
