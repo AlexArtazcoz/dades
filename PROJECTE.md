@@ -120,11 +120,22 @@ Es manté la disciplina de `SCHEMA_MIGRATIONS.md` des del primer dia
   l'ajust d'alçada heretat) i hamburguesa. Verificat al navegador: crear
   sector i repositori, seleccions, persistència de la vista en recarregar,
   doble confirmació d'esborrat i consola neta.
-- [ ] **Fase 3 — Galeria visual**
-  Graella masonry al llenç (CSS columns, imatges amb `useBlobUrl`), hover amb
-  títol + domini, clic → visor a pantalla completa navegant per tota la vista.
-  Les tres vistes: repositori, sector i tot. Reordenar amb dnd-kit dins d'un
-  repositori.
+- [x] **Fase 3 — Galeria visual**
+  `components/Gallery/Gallery.tsx`: graella masonry amb CSS columns
+  (`columnWidth: 250`), fitxes amb portada (`coverAttachmentId` o primer
+  adjunt), bloc "PDF" per a adjunts no-imatge i fitxa de text per a
+  referències només d'enllaç (clic → obre la font). Vel de hover amb títol,
+  domini i nom del repositori (a les vistes sector/tot; sempre visible en
+  tàctil). Clic → `AttachmentViewer` reutilitzat tal qual amb la **llista
+  plana de tots els adjunts de la vista** (fletxes/tira recorren tota la
+  galeria; reanomenar i esborrar adjunts cablejats a l'store, amb ajust de
+  portada en esborrar). Reordenació amb dnd-kit (rectSortingStrategy,
+  activació a 8px perquè el clic no es mengi el drag) només a la vista de
+  repositori; escriu `referenceOrder`. L'store carrega els adjunts per vista
+  (`loadAttachmentsForView`, amb consultes `anyOf` per sector) i s'exposa
+  com a `__store` a la consola en dev. Verificat al navegador amb dades
+  sembrades: masonry a 4 columnes, visor amb navegació 1/8, ordre persistit
+  després de recarregar i les tres vistes.
 - [ ] **Fase 4 — Ingesta ràpida**
   Arrossegar fitxers (multi) directament a la graella → crea referències amb
   el fitxer com a portada; enganxar imatges des del porta-retalls (Cmd+V);

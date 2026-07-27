@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { v4 as uuidv4 } from 'uuid';
-import type { Sector, Repositori, Referencia } from '../types';
+import type { Sector, Repositori, Referencia, Attachment } from '../types';
 import * as db from '../services/db';
 import type { ActiveView } from '../services/db';
 
@@ -9,6 +9,7 @@ interface DadesState {
   sectors: Sector[];
   repositoris: Repositori[];
   referencies: Referencia[];
+  attachments: Attachment[]; // els adjunts de la vista activa (la galeria)
   activeView: ActiveView;
   isLoading: boolean;
   error: string | null;
@@ -38,6 +39,11 @@ interface DadesState {
   deleteReferencia: (id: string) => Promise<void>;
   reorderReferencies: (repositoriId: string, newOrder: string[]) => Promise<void>;
 
+  // Adjunts
+  loadAttachmentsForView: () => Promise<void>;
+  deleteAttachment: (id: string) => Promise<void>;
+  renameAttachment: (id: string, name: string) => Promise<void>;
+
   // Helpers
   getSector: (id: string) => Sector | undefined;
   getRepositori: (id: string) => Repositori | undefined;
@@ -54,6 +60,7 @@ export const useDadesStore = create<DadesState>()(
     sectors: [],
     repositoris: [],
     referencies: [],
+    attachments: [],
     activeView: { mode: 'tot' },
     isLoading: false,
     error: null,
@@ -260,6 +267,50 @@ export const useDadesStore = create<DadesState>()(
       if (repositori) await db.saveRepositori(repositori);
     },
 
+    // === Adjunts ===
+
+    loadAttachmentsForView: async () => {
+      const view = get().activeView;
+      let attachments: Attachment[];
+      if (view.mode === 'repositori') {
+        attachments = await db.getAttachmentsForRepositori(view.id);
+      } else if (view.mode === 'sector') {
+        const ids = get().repositoris.filter(r => r.sectorId === view.id).map(r => r.id);
+        attachments = await db.getAttachmentsForRepositoris(ids);
+      } else {
+        attachments = await db.getAllAttachments();
+      }
+      // La vista pot haver canviat mentre llegíem d'IndexedDB: no la xafem
+      if (get().activeView !== view) return;
+      set(state => {
+        state.attachments = attachments;
+      });
+    },
+
+    deleteAttachment: async (id: string) => {
+      const attachment = get().attachments.find(a => a.id === id);
+      await db.deleteAttachment(id);
+      set(state => {
+        state.attachments = state.attachments.filter(a => a.id !== id);
+      });
+      // Si era la portada d'una referència, passa-la al següent adjunt (o cap)
+      if (attachment) {
+        const referencia = get().referencies.find(r => r.id === attachment.referenciaId);
+        if (referencia?.coverAttachmentId === id) {
+          const next = get().attachments.find(a => a.referenciaId === referencia.id);
+          await get().updateReferencia(referencia.id, { coverAttachmentId: next?.id ?? null });
+        }
+      }
+    },
+
+    renameAttachment: async (id: string, name: string) => {
+      await db.renameAttachment(id, name);
+      set(state => {
+        const attachment = state.attachments.find(a => a.id === id);
+        if (attachment) attachment.name = name;
+      });
+    },
+
     // === Helpers ===
 
     getSector: (id: string) => get().sectors.find(s => s.id === id),
@@ -269,7 +320,7 @@ export const useDadesStore = create<DadesState>()(
     countReferencies: (repositoriId: string) =>
       get().referencies.filter(r => r.repositoriId === repositoriId).length,
 
-    getVisibleReferencies: () => {
+    getVisibleReferencies: (): Referencia[] => {
       const { activeView, referencies, repositoris } = get();
 
       if (activeView.mode === 'repositori') {
@@ -297,3 +348,8 @@ export const useDadesStore = create<DadesState>()(
     },
   }))
 );
+
+// A la consola en dev, com __db: permet inspeccionar i provar l'store a mà
+if (import.meta.env.DEV) {
+  (window as unknown as Record<string, unknown>).__store = useDadesStore;
+}

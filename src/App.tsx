@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { LeftBar } from './components/LeftBar';
 import { Sidebar } from './components/Sidebar';
+import { Gallery } from './components/Gallery';
 import { ToastContainer } from './components/ToastContainer';
 import { useDadesStore } from './stores/dadesStore';
 import { useUIStore } from './stores/uiStore';
@@ -119,12 +120,8 @@ function App() {
       <Sidebar />
       <ToastContainer />
 
-      {/* Llenç provisional: la galeria masonry arriba a la Fase 3 */}
-      {sectors.length > 0 && (
-        <div className="fixed inset-0 flex items-center justify-center px-6 pointer-events-none" style={{ paddingLeft: 110 }}>
-          <p className="text-sm text-white/25">La galeria arriba a la Fase 3.</p>
-        </div>
-      )}
+      {/* La galeria masonry de la vista activa */}
+      {sectors.length > 0 && <Gallery />}
 
       {/* Base buida: benvinguda + restauració si hi ha còpia configurada */}
       {sectors.length === 0 && !sidebarOpen && (

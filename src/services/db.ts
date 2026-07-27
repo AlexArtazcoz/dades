@@ -214,6 +214,16 @@ export async function saveAttachment(attachment: Attachment): Promise<void> {
   await db.attachments.put(attachment);
 }
 
+// La galeria carrega els adjunts de la vista activa: tots, els d'un grapat
+// de repositoris (vista sector) o els d'un de sol.
+export async function getAllAttachments(): Promise<Attachment[]> {
+  return db.attachments.toArray();
+}
+
+export async function getAttachmentsForRepositoris(repositoriIds: string[]): Promise<Attachment[]> {
+  return db.attachments.where('repositoriId').anyOf(repositoriIds).toArray();
+}
+
 export async function getAttachmentsForRepositori(repositoriId: string): Promise<Attachment[]> {
   return db.attachments.where('repositoriId').equals(repositoriId).toArray();
 }
