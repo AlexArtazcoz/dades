@@ -171,18 +171,16 @@ Es manté la disciplina de `SCHEMA_MIGRATIONS.md` des del primer dia
   calaix. Workflow de Pages amb disparador de push reactivat. Creat el repo
   privat `AlexArtazcoz/dades-backup` (les còpies de dades van aquí, mai al
   repo del codi).
-  **Pendent d'Alex** (el canvi de visibilitat el bloqueja el classificador
-  de permisos):
-  1. Fer públic el repo del codi: `gh repo edit AlexArtazcoz/dades
-     --visibility public --accept-visibility-change-consequences`
-  2. Activar Pages: `gh api -X POST repos/AlexArtazcoz/dades/pages -f
-     build_type=workflow` i rellançar el workflow
-  3. Token fine-grained (github.com → Settings → Developer settings →
-     Fine-grained tokens): només repo `dades-backup`, permís Contents
-     read&write; enganxar-lo a Configuració dins l'app amb el repo
-     `AlexArtazcoz/dades-backup`.
-  URL final: https://alexartazcoz.github.io/dades/ (recordar que a Pages la
-  BD del navegador és una altra: restaurar-hi la còpia el primer cop).
+  Fet amb l'autorització d'Alex: `dades` és públic (les dades mai hi van:
+  viuen a `dades-backup`, privat) i Pages està actiu amb build per workflow.
+  **URL: https://alexartazcoz.github.io/dades/**
+  **Únic pas pendent d'Alex** — el token del backup (un secret no el puc
+  crear jo): github.com → Settings → Developer settings → Fine-grained
+  tokens → Generate new token; només el repo `dades-backup`, permís
+  **Contents: read and write**; després, dins l'app: engranatge →
+  Configuració → repo `AlexArtazcoz/dades-backup` + el token. La primera
+  còpia es fa sola (o amb «Fes còpia ara»). A Pages la BD del navegador és
+  una altra: el primer cop, «Restaura» per portar-hi les dades.
 
 ## Convencions i traps (heretades de SceneScript)
 
