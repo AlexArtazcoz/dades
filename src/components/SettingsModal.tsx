@@ -13,7 +13,7 @@ import {
 } from '../services/backup';
 
 const inputStyle: React.CSSProperties = {
-  height: 40, borderRadius: 8, border: '0.5px solid #E6E6E6',
+  height: 40, borderRadius: 8, border: '0.5px solid var(--color-border)',
   paddingLeft: 10, fontSize: 13, outline: 'none', flexShrink: 0,
   margin: 0, background: 'transparent', fontWeight: 500, width: '100%',
   boxSizing: 'border-box',
@@ -122,7 +122,7 @@ export function SettingsModal() {
       className="fixed inset-0 z-50"
       onClick={() => setSettingsModalOpen(false)}
     >
-      <div className="absolute inset-0 bg-black/40" />
+      <div className="absolute inset-0" style={{ background: 'rgba(18,18,17,0.22)' }} />
       <div
         style={{
           position: 'fixed',
@@ -132,13 +132,13 @@ export function SettingsModal() {
           width: 340,
           maxWidth: 'calc(100vw - 16px)',
           borderRadius: 16,
-          border: '0.5px solid #E6E6E6',
+          border: '0.5px solid var(--color-border)',
           background: 'white',
           padding: 16,
           display: 'flex',
           flexDirection: 'column',
           gap: 16,
-          boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+          boxShadow: '0 8px 40px rgba(18,18,17,0.18)',
           animation: 'ref-dialog-in 0.25s cubic-bezier(0.2, 0, 0, 1) both',
         }}
         onClick={e => e.stopPropagation()}
@@ -207,7 +207,7 @@ export function SettingsModal() {
                 disabled={backupBusy !== null || !hasBackupConfig()}
                 style={{
                   flex: 1, height: 36, borderRadius: 8,
-                  border: '0.5px solid #E6E6E6', background: 'transparent',
+                  border: '0.5px solid var(--color-border)', background: 'transparent',
                   cursor: 'pointer', fontSize: 12, fontWeight: 500,
                   opacity: backupBusy !== null || !hasBackupConfig() ? 0.5 : 1,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -221,7 +221,7 @@ export function SettingsModal() {
                 disabled={backupBusy !== null || !hasBackupConfig()}
                 style={{
                   flex: 1, height: 36, borderRadius: 8,
-                  border: restoreArmed ? 'none' : '0.5px solid #E6E6E6',
+                  border: restoreArmed ? 'none' : '0.5px solid var(--color-border)',
                   background: restoreArmed ? '#dc2626' : 'transparent',
                   color: restoreArmed ? 'white' : '#7C7C7C',
                   cursor: 'pointer', fontSize: 12, fontWeight: 500,
@@ -241,7 +241,7 @@ export function SettingsModal() {
           onClick={() => setSettingsModalOpen(false)}
           style={{
             height: 40, borderRadius: 8,
-            background: 'var(--color-accent)', color: 'white',
+            background: 'var(--color-accent)', color: 'var(--color-black)',
             border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
           }}
         >

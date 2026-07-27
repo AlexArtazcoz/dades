@@ -111,7 +111,7 @@ export function LeftBar() {
   };
 
   return (
-    <div className={`left-bar fixed left-0 top-0 bg-[var(--color-black)] border-r border-[#383838] z-30 flex flex-col ${sidebarOpen ? 'sidebar-open' : ''} ${sidebarClosing ? 'sidebar-closing' : ''}`}>
+    <div className={`left-bar fixed left-0 top-0 bg-[var(--color-bg)] border-r border-[var(--color-border)] z-30 flex flex-col ${sidebarOpen ? 'sidebar-open' : ''} ${sidebarClosing ? 'sidebar-closing' : ''}`}>
       {/* ── Part alta ── */}
       <div className="flex flex-col items-center w-full shrink-0">
 
@@ -122,7 +122,7 @@ export function LeftBar() {
         <div className="relative flex items-center justify-center h-[48px]">
           <button
             onClick={() => (menuOpen ? closeMenu() : setMenuOpen(true))}
-            className="text-white hover:text-[var(--color-accent)] transition-colors"
+            className="text-[var(--color-black)] hover:text-[var(--color-accent-text)] transition-colors"
             title="Menú"
           >
             <PenIcon forceHovered={menuOpen} />
@@ -151,8 +151,8 @@ export function LeftBar() {
             <span
               className="subheading"
               style={{
-                color: 'white',
-                border: '1px solid rgba(255,255,255,0.35)',
+                color: 'var(--color-text-muted)',
+                border: '1px solid var(--color-border)',
                 borderRadius: 10,
                 padding: '7px 12px',
                 lineHeight: 1,
@@ -176,7 +176,7 @@ export function LeftBar() {
           {title && (
             <div className="w-full flex flex-col items-center gap-[16px]">
               <span
-                className="text-white uppercase whitespace-nowrap origin-center"
+                className="text-[var(--color-black)] uppercase whitespace-nowrap origin-center"
                 style={{
                   fontFamily: 'var(--font-headline)',
                   fontSize: 'var(--leftbar-title-fit, var(--leftbar-title-size))',
@@ -194,7 +194,7 @@ export function LeftBar() {
                     fontFamily: 'var(--font-headline)',
                     fontSize: 11,
                     letterSpacing: '0.1em',
-                    color: 'var(--color-accent)',
+                    color: 'var(--color-accent-text)',
                     writingMode: 'vertical-rl',
                     transform: 'rotate(180deg)',
                   }}
@@ -214,8 +214,8 @@ export function LeftBar() {
           onClick={toggleSidebar}
           className={`p-2 transition-colors ${
             sidebarOpen
-              ? 'text-[var(--color-accent)]'
-              : 'text-[#9A9A9A] hover:text-[var(--color-accent)]'
+              ? 'text-[var(--color-accent-text)]'
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-accent-text)]'
           }`}
           title="Sectors"
         >

@@ -84,13 +84,38 @@ function GalleryCard({
     marginBottom: 16,
   };
 
+  // Peu en tinta per a les fitxes que no són una imatge: sobre paper, el vel
+  // fosc del hover només té sentit a sobre d'una foto.
+  const inkFooter = (
+    <div className="px-3 pb-2.5 pt-1">
+      <div className="text-[var(--color-black)] text-[12px] font-medium leading-tight truncate">
+        {caption}
+      </div>
+      {(subtitle || (domain && referencia.title)) && (
+        <div className="flex items-center gap-2">
+          {domain && referencia.title && (
+            <span className="text-[var(--color-text-faint)] text-[10px] truncate">{domain}</span>
+          )}
+          {subtitle && (
+            <span
+              className="text-[10px] uppercase tracking-wider truncate"
+              style={{ color: 'var(--color-accent-text)' }}
+            >
+              {subtitle}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className="group relative rounded-xl overflow-hidden cursor-pointer bg-[#1c1c1c] border border-white/5 hover:border-white/15 transition-colors"
+      className="group relative rounded-xl overflow-hidden cursor-pointer bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors"
       onClick={onOpen}
       title={caption}
     >
@@ -98,36 +123,53 @@ function GalleryCard({
         url && <img src={url} alt={caption} className="w-full block" draggable={false} />
       ) : cover ? (
         /* Adjunt que no és imatge (PDF): bloc amb etiqueta */
-        <div className="w-full aspect-[3/4] flex flex-col items-center justify-center gap-2 text-white/40">
-          <span
-            className="px-2 py-1 rounded-md bg-white/10 text-[11px] tracking-widest"
-            style={{ fontFamily: 'var(--font-headline)' }}
-          >
-            PDF
-          </span>
-          <span className="text-[11px] max-w-[80%] truncate">{cover.name}</span>
-        </div>
+        <>
+          <div className="w-full aspect-[3/4] flex flex-col items-center justify-center gap-2 text-[var(--color-text-muted)]">
+            <span
+              className="px-2 py-1 rounded-md text-[11px] tracking-widest"
+              style={{ background: 'var(--color-accent-soft)', color: 'var(--color-accent-text)', fontFamily: 'var(--font-headline)' }}
+            >
+              PDF
+            </span>
+            <span className="text-[11px] max-w-[80%] truncate">{cover.name}</span>
+          </div>
+          {inkFooter}
+        </>
       ) : (
         /* Referència sense fitxers: fitxa de text (enllaç o nota) */
-        <div className="w-full min-h-[120px] flex flex-col justify-center gap-2 p-4">
-          <div className="flex items-center gap-2 text-white/40">
-            <LinkIcon size={13} />
-            <span className="text-[11px] truncate">{domain || '—'}</span>
+        <>
+          <div className="w-full min-h-[110px] flex flex-col justify-center gap-2 p-4 pb-2">
+            <div className="flex items-center gap-2 text-[var(--color-text-faint)]">
+              <LinkIcon size={13} />
+              <span className="text-[11px] truncate">{domain || '—'}</span>
+            </div>
+            <span className="text-[var(--color-black)] text-[14px] leading-snug">
+              {referencia.title || 'Sense títol'}
+            </span>
+            {referencia.note && (
+              <span className="text-[var(--color-text-muted)] text-[12px] leading-snug line-clamp-3">
+                {referencia.note}
+              </span>
+            )}
           </div>
-          <span className="text-white/80 text-[14px] leading-snug">
-            {referencia.title || 'Sense títol'}
-          </span>
-          {referencia.note && (
-            <span className="text-white/35 text-[12px] leading-snug line-clamp-3">{referencia.note}</span>
+          {subtitle && (
+            <div className="px-4 pb-3">
+              <span
+                className="text-[10px] uppercase tracking-wider truncate"
+                style={{ color: 'var(--color-accent-text)' }}
+              >
+                {subtitle}
+              </span>
+            </div>
           )}
-        </div>
+        </>
       )}
 
       {/* Llapis d'edició — obre la fitxa de la referència */}
       <button
         onClick={e => { e.stopPropagation(); onEdit(); }}
         onPointerDown={e => e.stopPropagation()}
-        className={`absolute top-2 right-2 z-10 p-1.5 rounded-md bg-black/55 text-white/80 hover:text-white transition-all ${
+        className={`absolute top-2 right-2 z-10 p-1.5 rounded-md bg-white/85 text-[var(--color-text-muted)] hover:text-[var(--color-black)] shadow-sm transition-all ${
           DEVICE_HAS_HOVER ? 'opacity-0 group-hover:opacity-100' : ''
         }`}
         title="Edita la referència"
@@ -135,13 +177,14 @@ function GalleryCard({
         <Pencil size={13} />
       </button>
 
-      {/* Vel amb títol i domini — al hover (sempre visible en tàctil si hi ha imatge) */}
-      {(cover || subtitle) && (
+      {/* Sobre una foto, el títol va en un vel fosc: és l'únic fons que no pot
+          ser blanc, perquè la imatge de sota pot ser de qualsevol color. */}
+      {cover && isImage && (
         <div
           className={`absolute inset-x-0 bottom-0 px-3 pt-8 pb-2.5 pointer-events-none transition-opacity duration-200 ${
             DEVICE_HAS_HOVER ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'
           }`}
-          style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.75))' }}
+          style={{ background: 'linear-gradient(transparent, rgba(18,18,17,0.72))' }}
         >
           <div className="text-white text-[12px] font-medium leading-tight truncate">{caption}</div>
           <div className="flex items-center gap-2">
@@ -165,7 +208,7 @@ function DragCard({ cover }: { cover: Attachment | null }) {
   const url = useBlobUrl(cover && isImageAttachment(cover) ? cover.blob : null);
   return (
     <div
-      className="rounded-xl overflow-hidden border-2 shadow-2xl bg-[#1c1c1c]"
+      className="rounded-xl overflow-hidden border-2 shadow-xl bg-[var(--color-surface)]"
       style={{ width: 200, borderColor: 'var(--color-accent)' }}
     >
       {url ? (
@@ -370,15 +413,15 @@ export function Gallery() {
       className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none"
       style={{ paddingLeft: LEFTBAR_W }}
     >
-      <div className="absolute inset-y-0 right-0" style={{ left: LEFTBAR_W, background: 'rgba(0,0,0,0.6)' }} />
+      <div className="absolute inset-y-0 right-0" style={{ left: LEFTBAR_W, background: 'rgba(255,255,255,0.86)' }} />
       <div
         className="relative rounded-2xl px-8 py-6 text-center"
-        style={{ border: '2px dashed var(--color-accent)', background: 'rgba(0,0,0,0.5)' }}
+        style={{ border: '2px dashed var(--color-accent)', background: 'var(--color-surface)' }}
       >
-        <p className="text-white text-sm font-medium">
+        <p className="text-[var(--color-black)] text-sm font-medium">
           Deixa anar per afegir a «{activeRepositori.name}»
         </p>
-        <p className="text-white/40 text-[11px] mt-1">Imatges i PDFs, fins a 20 MB</p>
+        <p className="text-[var(--color-text-muted)] text-[11px] mt-1">Imatges i PDFs, fins a 20 MB</p>
       </div>
     </div>
   );
@@ -390,7 +433,7 @@ export function Gallery() {
         style={{ paddingLeft: LEFTBAR_W + 24 }}
         {...dropHandlers}
       >
-        <p className="text-sm text-white/25 text-center max-w-[360px]">
+        <p className="text-sm text-[var(--color-text-muted)] text-center max-w-[360px]">
           {isRepositoriView
             ? 'Aquest repositori encara és buit. Arrossega-hi imatges o PDFs, o enganxa\'ls amb Cmd+V (també un enllaç).'
             : 'Encara no hi ha cap referència en aquesta vista.'}
@@ -424,11 +467,11 @@ export function Gallery() {
       {/* Barra de cerca i etiquetes — enganxada a dalt mentre es fa scroll */}
       <div
         className="sticky top-0 z-30 -mx-2 px-2 pb-3 pt-2"
-        style={{ background: 'linear-gradient(var(--color-black) 75%, transparent)' }}
+        style={{ background: 'linear-gradient(var(--color-bg) 78%, transparent)' }}
       >
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-faint)] pointer-events-none" />
             <input
               ref={searchRef}
               type="text"
@@ -438,7 +481,7 @@ export function Gallery() {
                 if (e.key === 'Escape') { setQuery(''); (e.target as HTMLInputElement).blur(); }
               }}
               placeholder="Cerca…  ( / )"
-              className="h-8 w-[200px] rounded-lg bg-[#1c1c1c] border border-white/10 focus:border-white/25 outline-none text-[12px] text-white placeholder-white/25 pl-8 pr-3 transition-colors"
+              className="h-8 w-[200px] rounded-lg bg-[var(--color-surface)] border border-[var(--color-border)] focus:border-[var(--color-accent)] outline-none text-[12px] text-[var(--color-black)] placeholder-[var(--color-text-faint)] pl-8 pr-3 transition-colors"
             />
           </div>
 
@@ -454,8 +497,8 @@ export function Gallery() {
                 className="h-8 px-3 rounded-lg text-[11px] font-medium transition-colors"
                 style={
                   isOn
-                    ? { background: 'var(--color-accent)', color: '#1a1a1a' }
-                    : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.55)' }
+                    ? { background: 'var(--color-accent)', color: 'var(--color-black)' }
+                    : { background: 'var(--color-surface)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }
                 }
                 title={isOn ? 'Treu el filtre' : 'Filtra per aquesta etiqueta'}
               >
@@ -468,7 +511,7 @@ export function Gallery() {
           {filtering && (
             <button
               onClick={() => { setQuery(''); setSelectedTags([]); }}
-              className="h-8 flex items-center gap-1 text-[11px] text-white/40 hover:text-white transition-colors"
+              className="h-8 flex items-center gap-1 text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-black)] transition-colors"
               title="Neteja els filtres"
             >
               <X size={12} />
@@ -480,7 +523,7 @@ export function Gallery() {
 
       {filtered.length === 0 ? (
         <div className="flex items-center justify-center" style={{ minHeight: '50vh' }}>
-          <p className="text-sm text-white/25">Cap referència no coincideix amb el filtre.</p>
+          <p className="text-sm text-[var(--color-text-muted)]">Cap referència no coincideix amb el filtre.</p>
         </div>
       ) : (
       <div style={{ columnWidth: 250, columnGap: 16 }}>

@@ -182,6 +182,27 @@ Es manté la disciplina de `SCHEMA_MIGRATIONS.md` des del primer dia
   còpia es fa sola (o amb «Fes còpia ara»). A Pages la BD del navegador és
   una altra: el primer cop, «Restaura» per portar-hi les dades.
 
+## Llenguatge visual
+
+Paper blanc de dalt a baix (SceneScript és negre) i un **beix tranquil** com a
+únic color, perquè el que cridi l'atenció siguin les referències i no la
+interfície. Els colors viuen a `:root` de `index.css`:
+
+| Variable | Valor | Per a què |
+|---|---|---|
+| `--color-bg` | `#FFFFFF` | tot el fons: llenç, calaix, barra |
+| `--color-surface` | `#FAF9F7` | fitxes, camps, botons rodons |
+| `--color-accent` | `#C9B79F` | omplerts, vores actives, punts |
+| `--color-accent-text` | `#8B7355` | el mateix beix, prou fosc per a text petit |
+| `--color-accent-soft` | beix al 18% | fons d'estat actiu i hover de menú |
+| `--color-border` | `#E8E4DC` | totes les hairlines |
+| `--color-text-muted` / `-faint` | `#8A8880` / `#BDBAB3` | text secundari i comptadors |
+
+Regla: **sobre el beix sempre hi va tinta** (`--color-black`), mai blanc — amb
+blanc no es llegeix. Els únics fons foscos que queden són deliberats i van
+sempre a sobre d'una imatge, que pot ser de qualsevol color: el vel del títol
+a les fitxes amb foto, la capa d'accions de les miniatures i el toast.
+
 ## Convencions i traps (heretades de SceneScript)
 
 - Qualsevol canvi d'esquema segueix `SCHEMA_MIGRATIONS.md`; el backfill va

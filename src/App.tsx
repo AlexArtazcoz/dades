@@ -109,14 +109,14 @@ function App() {
 
   if (!dbInitialized || isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white/40">{!dbInitialized ? 'Inicialitzant…' : 'Carregant…'}</div>
+      <div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center">
+        <div className="text-[var(--color-text-muted)]">{!dbInitialized ? 'Inicialitzant…' : 'Carregant…'}</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-[var(--color-bg)]">
       <LeftBar />
       <Sidebar />
       <SettingsModal />
@@ -128,9 +128,9 @@ function App() {
       {/* Base buida: benvinguda + restauració si hi ha còpia configurada */}
       {sectors.length === 0 && !sidebarOpen && (
         <div className="fixed inset-0 z-20 flex items-center justify-center px-6 pointer-events-none" style={{ paddingLeft: 110 }}>
-          <div className="pointer-events-auto w-full max-w-[400px] text-center text-white">
+          <div className="pointer-events-auto w-full max-w-[400px] text-center text-[var(--color-black)]">
             <h1 className="text-2xl font-semibold tracking-tight mb-2">Dades</h1>
-            <p className="text-sm leading-relaxed text-white/40 mb-5">
+            <p className="text-sm leading-relaxed text-[var(--color-text-muted)] mb-5">
               {hasBackupConfig()
                 ? 'Aquest navegador no té cap sector, però hi ha una còpia de seguretat al GitHub.'
                 : 'Base de referències visual. Crea el primer sector des del menú.'}
@@ -139,14 +139,14 @@ function App() {
               <button
                 onClick={handleRestore}
                 disabled={restoring}
-                className="w-full max-w-[280px] px-4 py-2.5 bg-[var(--color-accent)] hover:bg-[#e89a3f] disabled:opacity-50 text-[#1a1a1a] rounded-lg shadow-lg font-medium text-sm"
+                className="w-full max-w-[280px] px-4 py-2.5 bg-[var(--color-accent)] hover:bg-[#b9a389] disabled:opacity-50 text-[var(--color-black)] rounded-lg font-medium text-sm transition-colors"
               >
                 {restoring ? 'Restaurant…' : 'Restaura les dades'}
               </button>
             ) : (
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="w-full max-w-[280px] px-4 py-2.5 bg-[var(--color-accent)] hover:bg-[#e89a3f] text-[#1a1a1a] rounded-lg shadow-lg font-medium text-sm"
+                className="w-full max-w-[280px] px-4 py-2.5 bg-[var(--color-accent)] hover:bg-[#b9a389] text-[var(--color-black)] rounded-lg font-medium text-sm transition-colors"
               >
                 Obre el menú
               </button>

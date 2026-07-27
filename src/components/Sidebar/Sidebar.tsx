@@ -11,7 +11,7 @@ import type { Sector, Repositori } from '../../types';
    centrada dins del calaix, animació ref-dialog-in i Enter per desar. */
 
 const inputStyle: React.CSSProperties = {
-  height: 40, borderRadius: 8, border: '0.5px solid #E6E6E6',
+  height: 40, borderRadius: 8, border: '0.5px solid var(--color-border)',
   paddingLeft: 10, fontSize: 13, outline: 'none', flexShrink: 0,
   margin: 0, background: 'transparent', fontWeight: 500,
 };
@@ -86,7 +86,7 @@ function EntityModal({
       className="fixed inset-0 z-50"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="absolute inset-0 bg-black/40" />
+      <div className="absolute inset-0" style={{ background: 'rgba(18,18,17,0.22)' }} />
       {/* Centrada dins del panell de 400px del calaix */}
       <div
         style={{
@@ -94,13 +94,13 @@ function EntityModal({
           left: 235, top: '50%', transform: 'translateY(-50%)',
           width: 314,
           borderRadius: 16,
-          border: '0.5px solid #E6E6E6',
+          border: '0.5px solid var(--color-border)',
           background: 'white',
           padding: 16,
           display: 'flex',
           flexDirection: 'column',
           gap: 16,
-          boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+          boxShadow: '0 8px 40px rgba(18,18,17,0.18)',
           animation: 'ref-dialog-in 0.25s cubic-bezier(0.2, 0, 0, 1) both',
         }}
         onClick={e => e.stopPropagation()}
@@ -158,7 +158,7 @@ function EntityModal({
             onClick={onClose}
             style={{
               flex: 1, height: 40, borderRadius: 8,
-              border: '0.5px solid #E6E6E6', background: 'transparent',
+              border: '0.5px solid var(--color-border)', background: 'transparent',
               cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#7C7C7C',
             }}
           >
@@ -169,8 +169,8 @@ function EntityModal({
             disabled={isDisabled}
             style={{
               flex: 1, height: 40, borderRadius: 8,
-              background: isDisabled ? '#E6E6E6' : 'var(--color-accent)',
-              color: 'white',
+              background: isDisabled ? '#EFEDE8' : 'var(--color-accent)',
+              color: isDisabled ? '#A8A59E' : 'var(--color-black)',
               border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
             }}
           >
@@ -283,7 +283,7 @@ function RepositoriList({
                   </button>
                   <button
                     onClick={e => { e.stopPropagation(); setConfirmingId(null); }}
-                    className="px-2 py-0.5 bg-white/10 hover:bg-white/15 text-white/50 text-[11px] rounded-md transition-colors"
+                    className="px-2 py-0.5 bg-black/[0.06] hover:bg-black/10 text-[var(--color-text-muted)] text-[11px] rounded-md transition-colors"
                   >
                     Cancel·la
                   </button>
@@ -315,14 +315,14 @@ function RepositoriList({
                 >
                   <button
                     onClick={e => { e.stopPropagation(); onEditRepositori(repositori); }}
-                    className={`text-white/25 hover:text-white transition-all ${DEVICE_HAS_HOVER ? 'opacity-0 group-hover:opacity-100' : ''}`}
+                    className={`text-[var(--color-text-faint)] hover:text-[var(--color-black)] transition-all ${DEVICE_HAS_HOVER ? 'opacity-0 group-hover:opacity-100' : ''}`}
                     title="Edita"
                   >
                     <Pencil size={12} />
                   </button>
                   <button
                     onClick={e => { e.stopPropagation(); setConfirmingId(repositori.id); }}
-                    className={`text-white/25 hover:text-red-400 transition-all ${DEVICE_HAS_HOVER ? 'opacity-0 group-hover:opacity-100' : ''}`}
+                    className={`text-[var(--color-text-faint)] hover:text-red-500 transition-all ${DEVICE_HAS_HOVER ? 'opacity-0 group-hover:opacity-100' : ''}`}
                     title="Esborra"
                   >
                     <X size={13} />
@@ -388,7 +388,7 @@ function SectorItem({
         </button>
         <button
           onClick={onCancelDelete}
-          className="px-2.5 py-1 bg-white/10 hover:bg-white/15 text-white/50 text-[11px] rounded-md transition-colors"
+          className="px-2.5 py-1 bg-black/[0.06] hover:bg-black/10 text-[var(--color-text-muted)] text-[11px] rounded-md transition-colors"
         >
           Cancel·la
         </button>
@@ -426,7 +426,7 @@ function SectorItem({
           className="flex-1 min-w-0 truncate text-[26px] leading-[1.05] uppercase transition-colors"
           style={{
             fontFamily: 'var(--font-headline)',
-            color: (isActive || hovered) ? 'var(--color-accent)' : 'white',
+            color: (isActive || hovered) ? 'var(--color-accent-text)' : 'var(--color-black)',
           }}
         >
           {sector.emoji && <span className="mr-2">{sector.emoji}</span>}
@@ -444,21 +444,21 @@ function SectorItem({
         >
           <button
             onClick={e => { e.stopPropagation(); onRequestDelete(sector.id); }}
-            className="p-0.5 text-white/30 hover:text-red-400 transition-colors"
+            className="p-0.5 text-[var(--color-text-faint)] hover:text-red-500 transition-colors"
             title="Esborra"
           >
             <DeleteIcon size={24} />
           </button>
           <button
             onClick={e => { e.stopPropagation(); onEdit(sector); }}
-            className="p-0.5 text-white/30 hover:text-white transition-colors"
+            className="p-0.5 text-[var(--color-text-faint)] hover:text-[var(--color-black)] transition-colors"
             title="Edita"
           >
             <EditIcon size={24} />
           </button>
           <button
             onClick={e => { e.stopPropagation(); onNewRepositori(sector.id); }}
-            className="p-0.5 text-white/30 hover:text-white transition-colors text-[20px] leading-none w-[26px]"
+            className="p-0.5 text-[var(--color-text-faint)] hover:text-[var(--color-black)] transition-colors text-[20px] leading-none w-[26px]"
             title="Nou repositori"
           >
             +
@@ -551,10 +551,10 @@ export function Sidebar() {
                   }}
                 />
                 <span
-                  className="flex-1 min-w-0 truncate text-[26px] leading-[1.05] uppercase transition-colors group-hover:text-[var(--color-accent)]"
+                  className="flex-1 min-w-0 truncate text-[26px] leading-[1.05] uppercase transition-colors group-hover:text-[var(--color-accent-text)]"
                   style={{
                     fontFamily: 'var(--font-headline)',
-                    color: isTotActive ? 'var(--color-accent)' : 'white',
+                    color: isTotActive ? 'var(--color-accent-text)' : 'var(--color-black)',
                   }}
                 >
                   Tot
@@ -567,7 +567,7 @@ export function Sidebar() {
 
             <div className="subheading mb-3">Sectors</div>
             {sectors.length === 0 ? (
-              <div className="text-white/15 text-[11px] py-1">—</div>
+              <div className="text-[var(--color-text-faint)] text-[11px] py-1">—</div>
             ) : (
               sectors.map(sector => (
                 <SectorItem
