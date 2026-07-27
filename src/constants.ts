@@ -8,3 +8,11 @@ const VIEWPORT_W =
   typeof window === 'undefined' || window.innerWidth < 330 ? 1280 : window.innerWidth;
 
 export const LEFTBAR_W = VIEWPORT_W <= 640 ? 72 : 110;
+
+/* Ingesta de fitxers — mateix límit que SceneScript. S'accepten imatges
+   (qualsevol image/*) i PDFs. */
+export const MAX_FILE_BYTES = 20 * 1024 * 1024;
+
+export function isAcceptedFile(file: File): boolean {
+  return file.type.startsWith('image/') || file.type === 'application/pdf';
+}

@@ -136,11 +136,21 @@ Es manté la disciplina de `SCHEMA_MIGRATIONS.md` des del primer dia
   com a `__store` a la consola en dev. Verificat al navegador amb dades
   sembrades: masonry a 4 columnes, visor amb navegació 1/8, ordre persistit
   després de recarregar i les tres vistes.
-- [ ] **Fase 4 — Ingesta ràpida**
-  Arrossegar fitxers (multi) directament a la graella → crea referències amb
-  el fitxer com a portada; enganxar imatges des del porta-retalls (Cmd+V);
-  fitxa d'edició de la referència (títol, enllaç, nota, etiquetes, més
-  fitxers). Límit 20 MB per fitxer, com a SceneScript.
+- [x] **Fase 4 — Ingesta ràpida**
+  Només a la vista de repositori: **arrossegar fitxers** (multi) a la graella
+  amb vel de puntejat taronja («Deixa anar per afegir a …»), i **Cmd+V** amb
+  imatges del porta-retalls o un enllaç de text (crea una referència
+  d'enllaç); a les altres vistes un drop avisa amb un toast. Filtre a
+  `constants.ts`: imatges/PDF fins a `MAX_FILE_BYTES` (20 MB), amb toast
+  del que es rebutja. `ingestFiles` i `addAttachment` a l'store (el primer
+  fitxer es fa portada). **Fitxa d'edició** (llapis al hover de cada fitxa):
+  títol, enllaç, nota, etiquetes amb chips (coma/Enter afegeix, Backspace
+  treu l'última — el commit per coma passa el valor directament, llegir
+  l'estat allà el perdia), miniatures dels fitxers amb triar portada i
+  esborrar (doble clic de confirmació), afegir més fitxers, i esborrar la
+  referència. El paste s'ignora dins de camps de text i amb modals oberts.
+  Verificat al navegador: drop de 3 fitxers (2 creats, .txt rebutjat),
+  paste d'imatge i d'enllaç, fitxa desada amb etiquetes i vel visible.
 - [ ] **Fase 5 — Filtres i cerca**
   Cerca per títol/nota/domini, filtre per etiquetes (chips), barreja
   d'etiquetes entre repositoris a la vista sector/tot.

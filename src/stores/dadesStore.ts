@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Sector, Repositori, Referencia, Attachment } from '../types';
 import * as db from '../services/db';
 import type { ActiveView } from '../services/db';
+import { isAcceptedFile, MAX_FILE_BYTES } from '../constants';
 
 interface DadesState {
   sectors: Sector[];
@@ -43,6 +44,12 @@ interface DadesState {
   loadAttachmentsForView: () => Promise<void>;
   deleteAttachment: (id: string) => Promise<void>;
   renameAttachment: (id: string, name: string) => Promise<void>;
+  // Afegeix un fitxer a una referència existent (fitxa d'edició). Torna null
+  // si el fitxer no passa el filtre de mida/tipus.
+  addAttachment: (referenciaId: string, file: File) => Promise<Attachment | null>;
+  // Ingesta ràpida: un fitxer → una referència nova amb el fitxer de portada.
+  // Torna quantes s'han creat i els noms rebutjats (mida/tipus).
+  ingestFiles: (repositoriId: string, files: File[]) => Promise<{ created: number; rejected: string[] }>;
 
   // Helpers
   getSector: (id: string) => Sector | undefined;
@@ -309,6 +316,53 @@ export const useDadesStore = create<DadesState>()(
         const attachment = state.attachments.find(a => a.id === id);
         if (attachment) attachment.name = name;
       });
+    },
+
+    addAttachment: async (referenciaId: string, file: File) => {
+      if (!isAcceptedFile(file) || file.size > MAX_FILE_BYTES) return null;
+      const referencia = get().referencies.find(r => r.id === referenciaId);
+      if (!referencia) return null;
+
+      const attachment: Attachment = {
+        id: uuidv4(),
+        referenciaId,
+        repositoriId: referencia.repositoriId,
+        name: file.name || 'imatge.png',
+        mimeType: file.type,
+        size: file.size,
+        createdAt: Date.now(),
+        blob: file,
+      };
+      await db.saveAttachment(attachment);
+      set(state => {
+        state.attachments.push(attachment);
+      });
+      // Primera imatge de la referència → portada
+      if (!referencia.coverAttachmentId) {
+        await get().updateReferencia(referenciaId, { coverAttachmentId: attachment.id });
+      }
+      return attachment;
+    },
+
+    ingestFiles: async (repositoriId: string, files: File[]) => {
+      const rejected: string[] = [];
+      let created = 0;
+      for (const file of files) {
+        if (!isAcceptedFile(file) || file.size > MAX_FILE_BYTES) {
+          rejected.push(file.name || 'fitxer');
+          continue;
+        }
+        const referencia = await get().createReferencia(repositoriId);
+        const attachment = await get().addAttachment(referencia.id, file);
+        if (attachment) {
+          created++;
+        } else {
+          // No hauria de passar (ja hem filtrat), però no deixem la referència buida
+          await get().deleteReferencia(referencia.id);
+          rejected.push(file.name || 'fitxer');
+        }
+      }
+      return { created, rejected };
     },
 
     // === Helpers ===

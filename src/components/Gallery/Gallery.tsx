@@ -10,10 +10,12 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Link as LinkIcon } from 'lucide-react';
+import { Link as LinkIcon, Pencil } from 'lucide-react';
 import { AttachmentViewer } from '../Attachments/AttachmentViewer';
+import { ReferenciaModal } from './ReferenciaModal';
 import { isImageAttachment, useBlobUrl } from '../Attachments/attachmentUtils';
 import { useDadesStore } from '../../stores/dadesStore';
+import { useUIStore } from '../../stores/uiStore';
 import { DEVICE_HAS_HOVER } from '../../utils/interaction';
 import { LEFTBAR_W } from '../../constants';
 import type { Attachment, Referencia } from '../../types';
@@ -50,12 +52,14 @@ function GalleryCard({
   subtitle,
   sortable,
   onOpen,
+  onEdit,
 }: {
   referencia: Referencia;
   cover: Attachment | null;
   subtitle: string; // nom del repositori (vistes sector/tot); '' per amagar-lo
   sortable: boolean;
   onOpen: () => void;
+  onEdit: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: referencia.id,
@@ -114,6 +118,18 @@ function GalleryCard({
         </div>
       )}
 
+      {/* Llapis d'edició — obre la fitxa de la referència */}
+      <button
+        onClick={e => { e.stopPropagation(); onEdit(); }}
+        onPointerDown={e => e.stopPropagation()}
+        className={`absolute top-2 right-2 z-10 p-1.5 rounded-md bg-black/55 text-white/80 hover:text-white transition-all ${
+          DEVICE_HAS_HOVER ? 'opacity-0 group-hover:opacity-100' : ''
+        }`}
+        title="Edita la referència"
+      >
+        <Pencil size={13} />
+      </button>
+
       {/* Vel amb títol i domini — al hover (sempre visible en tàctil si hi ha imatge) */}
       {(cover || subtitle) && (
         <div
@@ -162,10 +178,18 @@ export function Gallery() {
     activeView, attachments, referencies, repositoris,
     loadAttachmentsForView, getVisibleReferencies, getRepositori,
     reorderReferencies, deleteAttachment, renameAttachment,
+    ingestFiles, createReferencia,
   } = useDadesStore();
+  const { addToast } = useUIStore();
 
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  // Comptador enter/leave: el dragleave salta a cada fill que es travessa
+  const [dragDepth, setDragDepth] = useState(0);
+
+  const repoId = activeView.mode === 'repositori' ? activeView.id : null;
+  const activeRepositori = repoId ? getRepositori(repoId) : undefined;
 
   // Els adjunts de la vista es (re)carreguen quan canvia la vista o les dades
   useEffect(() => {
@@ -197,6 +221,76 @@ export function Gallery() {
   const isRepositoriView = activeView.mode === 'repositori';
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
+  // === Ingesta: fitxers deixats anar o enganxats a la vista de repositori ===
+
+  const handleIngest = async (files: File[]) => {
+    if (!repoId || files.length === 0) return;
+    const { created, rejected } = await ingestFiles(repoId, files);
+    if (created > 0) {
+      addToast({ type: 'success', message: `${created} referènci${created === 1 ? 'a afegida' : 'es afegides'}` });
+    }
+    if (rejected.length > 0) {
+      addToast({
+        type: 'warning',
+        message: `Rebutjat${rejected.length === 1 ? '' : 's'}: ${rejected.join(', ')} (només imatges/PDF fins a 20 MB)`,
+      });
+    }
+  };
+
+  const dropHandlers = {
+    onDragOver: (e: React.DragEvent) => {
+      if (e.dataTransfer.types.includes('Files')) e.preventDefault();
+    },
+    onDragEnter: (e: React.DragEvent) => {
+      if (e.dataTransfer.types.includes('Files')) {
+        e.preventDefault();
+        setDragDepth(d => d + 1);
+      }
+    },
+    onDragLeave: (e: React.DragEvent) => {
+      if (e.dataTransfer.types.includes('Files')) setDragDepth(d => Math.max(0, d - 1));
+    },
+    onDrop: async (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragDepth(0);
+      const files = [...e.dataTransfer.files];
+      if (!repoId) {
+        addToast({ type: 'info', message: 'Obre un repositori per afegir-hi fitxers' });
+        return;
+      }
+      await handleIngest(files);
+    },
+  };
+
+  // Cmd+V: imatges del porta-retalls → referències noves; un enllaç de text →
+  // referència d'enllaç. Només a la vista de repositori i fora de camps de text.
+  useEffect(() => {
+    if (!repoId) return;
+    const onPaste = (e: ClipboardEvent) => {
+      if (editingId || viewerIndex !== null) return;
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (target?.closest('input, textarea, [contenteditable="true"]')) return;
+
+      const files = [...(e.clipboardData?.files ?? [])];
+      if (files.length > 0) {
+        e.preventDefault();
+        handleIngest(files);
+        return;
+      }
+      const text = e.clipboardData?.getData('text')?.trim() ?? '';
+      const looksLikeUrl = /^(https?:\/\/\S+|www\.\S+|[\w-]+(\.[\w-]+)+(\/\S*)?)$/i.test(text);
+      if (looksLikeUrl) {
+        e.preventDefault();
+        createReferencia(repoId, { url: text }).then(() => {
+          addToast({ type: 'success', message: `Enllaç afegit (${domainOf(text) || text})` });
+        });
+      }
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repoId, editingId, viewerIndex]);
+
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveDragId(null);
     if (!isRepositoriView || activeView.mode !== 'repositori') return;
@@ -210,18 +304,40 @@ export function Gallery() {
   };
 
   const draggedRef = activeDragId ? visibles.find(r => r.id === activeDragId) : null;
+  const editingRef = editingId ? referencies.find(r => r.id === editingId) : null;
+
+  // Vel que apareix mentre s'arrossega un fitxer per sobre de la galeria
+  const dragVeil = dragDepth > 0 && activeRepositori && (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none"
+      style={{ paddingLeft: LEFTBAR_W }}
+    >
+      <div className="absolute inset-y-0 right-0" style={{ left: LEFTBAR_W, background: 'rgba(0,0,0,0.6)' }} />
+      <div
+        className="relative rounded-2xl px-8 py-6 text-center"
+        style={{ border: '2px dashed var(--color-accent)', background: 'rgba(0,0,0,0.5)' }}
+      >
+        <p className="text-white text-sm font-medium">
+          Deixa anar per afegir a «{activeRepositori.name}»
+        </p>
+        <p className="text-white/40 text-[11px] mt-1">Imatges i PDFs, fins a 20 MB</p>
+      </div>
+    </div>
+  );
 
   if (repositoris.length > 0 && visibles.length === 0) {
     return (
       <main
         className="min-h-screen flex items-center justify-center px-6"
         style={{ paddingLeft: LEFTBAR_W + 24 }}
+        {...dropHandlers}
       >
         <p className="text-sm text-white/25 text-center max-w-[360px]">
           {isRepositoriView
-            ? 'Aquest repositori encara no té referències. La ingesta (arrossegar imatges, Cmd+V) arriba a la Fase 4.'
+            ? 'Aquest repositori encara és buit. Arrossega-hi imatges o PDFs, o enganxa\'ls amb Cmd+V (també un enllaç).'
             : 'Encara no hi ha cap referència en aquesta vista.'}
         </p>
+        {dragVeil}
       </main>
     );
   }
@@ -236,6 +352,7 @@ export function Gallery() {
         subtitle={isRepositoriView ? '' : repositori?.name ?? ''}
         sortable={isRepositoriView}
         onOpen={() => openCard(referencia)}
+        onEdit={() => setEditingId(referencia.id)}
       />
     );
   });
@@ -244,6 +361,7 @@ export function Gallery() {
     <main
       className="min-h-screen"
       style={{ paddingLeft: LEFTBAR_W + 24, paddingRight: 24, paddingTop: 32, paddingBottom: 48 }}
+      {...dropHandlers}
     >
       <div style={{ columnWidth: 250, columnGap: 16 }}>
         {isRepositoriView ? (
@@ -276,6 +394,17 @@ export function Gallery() {
           onDelete={id => deleteAttachment(id)}
         />
       )}
+
+      {/* Fitxa d'edició de la referència */}
+      {editingRef && (
+        <ReferenciaModal
+          key={editingRef.id}
+          referencia={editingRef}
+          onClose={() => setEditingId(null)}
+        />
+      )}
+
+      {dragVeil}
     </main>
   );
 }
