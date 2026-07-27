@@ -106,11 +106,20 @@ Es manté la disciplina de `SCHEMA_MIGRATIONS.md` des del primer dia
   export → clear → import amb blob intacte byte a byte, backfill de camps
   absents i cascada sector → repositori → referència → adjunt. Lint a zero
   (els 3 errors heretats eren al db.ts vell).
-- [ ] **Fase 2 — Store i menú lateral**
-  `dadesStore` (Zustand) amb sectors/repositoris/referències. Sidebar:
-  sectors desplegables amb els seus repositoris (patró del desplegable de
-  fases), crear/renombrar/esborrar amb doble confirmació, emoji, comptador de
-  referències. LeftBar amb totals de la vista activa.
+- [x] **Fase 2 — Store i menú lateral**
+  `dadesStore` (Zustand+immer) amb sectors/repositoris/referències, CRUD
+  sincronitzat amb Dexie i **vista activa** persistida a localStorage
+  (`{mode: 'tot' | 'sector' | 'repositori'}`) amb `getVisibleReferencies()`
+  a punt per a la galeria. Sidebar adaptada de SceneScript: entrada "Tot",
+  sectors amb el desplegable esglaonat mostrant "Tot el sector" + repositoris
+  (emoji, comptador, doble clic per renombrar, edita/esborra al hover amb
+  doble confirmació), modal blanc compartit per crear/editar sectors i
+  repositoris (nom, emoji; + enllaç i descripció als repositoris). LeftBar:
+  boli amb menú d'importa/exporta, pill amb el comptador de referències de la
+  vista, títol vertical (repositori en blanc + sector en taronja, amb
+  l'ajust d'alçada heretat) i hamburguesa. Verificat al navegador: crear
+  sector i repositori, seleccions, persistència de la vista en recarregar,
+  doble confirmació d'esborrat i consola neta.
 - [ ] **Fase 3 — Galeria visual**
   Graella masonry al llenç (CSS columns, imatges amb `useBlobUrl`), hover amb
   títol + domini, clic → visor a pantalla completa navegant per tota la vista.

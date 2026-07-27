@@ -179,6 +179,12 @@ export async function deleteRepositori(id: string): Promise<void> {
 
 // === Operacions de Referència ===
 
+// Tota la taula: el menú necessita comptadors per repositori i les vistes
+// sector/tot barregen repositoris. A l'escala d'una base personal no cal lazy.
+export async function getAllReferencies(): Promise<Referencia[]> {
+  return db.referencies.toArray();
+}
+
 export async function getReferenciesForRepositori(repositoriId: string): Promise<Referencia[]> {
   return db.referencies.where('repositoriId').equals(repositoriId).toArray();
 }
@@ -388,6 +394,39 @@ export async function forceSchemaReset(): Promise<void> {
   localStorage.setItem(SCHEMA_VERSION_KEY, CURRENT_SCHEMA_VERSION.toString());
   console.log(`Database cleared and schema version set to ${CURRENT_SCHEMA_VERSION}`);
   console.log('Reload the page to reinitialize.');
+}
+
+// === Vista activa (última oberta) — es restaura en tornar ===
+
+const ACTIVE_VIEW_STORAGE_KEY = 'dades_active_view';
+
+// La vista del llenç: tota la base, un sector sencer o un repositori concret
+export type ActiveView =
+  | { mode: 'tot' }
+  | { mode: 'sector'; id: string }
+  | { mode: 'repositori'; id: string };
+
+export function getStoredActiveView(): ActiveView | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_VIEW_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ActiveView;
+    if (parsed.mode === 'tot') return parsed;
+    if ((parsed.mode === 'sector' || parsed.mode === 'repositori') && typeof parsed.id === 'string') {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredActiveView(view: ActiveView | null): void {
+  if (view) {
+    localStorage.setItem(ACTIVE_VIEW_STORAGE_KEY, JSON.stringify(view));
+  } else {
+    localStorage.removeItem(ACTIVE_VIEW_STORAGE_KEY);
+  }
 }
 
 // Expose helpers to browser console in development

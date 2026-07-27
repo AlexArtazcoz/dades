@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
+import { LeftBar } from './components/LeftBar';
+import { Sidebar } from './components/Sidebar';
 import { ToastContainer } from './components/ToastContainer';
+import { useDadesStore } from './stores/dadesStore';
 import { useUIStore } from './stores/uiStore';
 import { initializeDatabase } from './services/db';
 import { hasBackupConfig, restoreFromGitHub, startAutoBackup, syncWithRemote } from './services/backup';
 
 function App() {
-  const { addToast } = useUIStore();
+  const { loadAll, sectors, isLoading } = useDadesStore();
+  const { addToast, sidebarOpen, setSidebarOpen } = useUIStore();
   const [restoring, setRestoring] = useState(false);
   const [dbInitialized, setDbInitialized] = useState(false);
 
@@ -25,6 +29,13 @@ function App() {
     };
     init();
   }, [addToast]);
+
+  // Load data after database is initialized
+  useEffect(() => {
+    if (dbInitialized) {
+      loadAll();
+    }
+  }, [dbInitialized, loadAll]);
 
   // Còpies automàtiques al GitHub mentre l'app és oberta
   useEffect(() => {
@@ -48,8 +59,8 @@ function App() {
         const result = await syncWithRemote();
         if (cancelled) return;
         if (result === 'restored') {
-          // Fins que hi hagi store propi (Fase 2), un refresc recarrega l'estat
-          window.location.reload();
+          await loadAll();
+          addToast({ type: 'success', message: 'Actualitzat amb la còpia del GitHub' });
         } else if (result === 'conflict') {
           addToast({
             type: 'warning',
@@ -73,54 +84,77 @@ function App() {
       cancelled = true;
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [dbInitialized, addToast]);
+  }, [dbInitialized, loadAll, addToast]);
 
   const handleRestore = async () => {
     setRestoring(true);
     try {
-      await restoreFromGitHub();
-      window.location.reload();
+      const { repositorisImported } = await restoreFromGitHub();
+      await loadAll();
+      addToast({
+        type: 'success',
+        message: `Còpia restaurada: ${repositorisImported} repositori${repositorisImported === 1 ? '' : 's'}`,
+      });
     } catch (error) {
       addToast({
         type: 'error',
         message: `No s'ha pogut restaurar: ${error instanceof Error ? error.message : 'error desconegut'}`,
       });
+    } finally {
       setRestoring(false);
     }
   };
 
-  if (!dbInitialized) {
+  if (!dbInitialized || isLoading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white/40">Inicialitzant…</div>
+        <div className="text-white/40">{!dbInitialized ? 'Inicialitzant…' : 'Carregant…'}</div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-black">
+      <LeftBar />
+      <Sidebar />
       <ToastContainer />
 
-      {/* Pantalla buida provisional: la galeria arriba a la Fase 3 */}
-      <div className="fixed inset-0 flex items-center justify-center px-6">
-        <div className="w-full max-w-[400px] text-center text-white">
-          <h1 className="text-2xl font-semibold tracking-tight mb-2">Dades</h1>
-          <p className="text-sm leading-relaxed text-white/40">
-            Base de referències visual. Encara no hi ha res a ensenyar.
-          </p>
-
-          {/* Navegador nou + còpia configurada al GitHub → oferir restaurar */}
-          {hasBackupConfig() && (
-            <button
-              onClick={handleRestore}
-              disabled={restoring}
-              className="mt-5 w-full max-w-[280px] px-4 py-2.5 bg-[var(--color-accent)] hover:bg-[#e89a3f] disabled:opacity-50 text-[#1a1a1a] rounded-lg shadow-lg font-medium text-sm"
-            >
-              {restoring ? 'Restaurant…' : 'Restaura les dades'}
-            </button>
-          )}
+      {/* Llenç provisional: la galeria masonry arriba a la Fase 3 */}
+      {sectors.length > 0 && (
+        <div className="fixed inset-0 flex items-center justify-center px-6 pointer-events-none" style={{ paddingLeft: 110 }}>
+          <p className="text-sm text-white/25">La galeria arriba a la Fase 3.</p>
         </div>
-      </div>
+      )}
+
+      {/* Base buida: benvinguda + restauració si hi ha còpia configurada */}
+      {sectors.length === 0 && !sidebarOpen && (
+        <div className="fixed inset-0 z-20 flex items-center justify-center px-6 pointer-events-none" style={{ paddingLeft: 110 }}>
+          <div className="pointer-events-auto w-full max-w-[400px] text-center text-white">
+            <h1 className="text-2xl font-semibold tracking-tight mb-2">Dades</h1>
+            <p className="text-sm leading-relaxed text-white/40 mb-5">
+              {hasBackupConfig()
+                ? 'Aquest navegador no té cap sector, però hi ha una còpia de seguretat al GitHub.'
+                : 'Base de referències visual. Crea el primer sector des del menú.'}
+            </p>
+            {hasBackupConfig() ? (
+              <button
+                onClick={handleRestore}
+                disabled={restoring}
+                className="w-full max-w-[280px] px-4 py-2.5 bg-[var(--color-accent)] hover:bg-[#e89a3f] disabled:opacity-50 text-[#1a1a1a] rounded-lg shadow-lg font-medium text-sm"
+              >
+                {restoring ? 'Restaurant…' : 'Restaura les dades'}
+              </button>
+            ) : (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="w-full max-w-[280px] px-4 py-2.5 bg-[var(--color-accent)] hover:bg-[#e89a3f] text-[#1a1a1a] rounded-lg shadow-lg font-medium text-sm"
+              >
+                Obre el menú
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
