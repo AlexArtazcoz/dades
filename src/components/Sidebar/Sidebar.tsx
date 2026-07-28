@@ -538,6 +538,7 @@ export function Sidebar() {
   };
 
   const isTotActive = activeView.mode === 'tot';
+  const isSobreActive = activeView.mode === 'sobre';
 
   return (
     <>
@@ -605,6 +606,18 @@ export function Sidebar() {
                 />
               ))
             )}
+            {/* Què és això — al final, després de l'arxiu */}
+            <button
+              className="block w-full text-left mt-8 pt-6 text-[13px] uppercase tracking-[0.1em] transition-colors"
+              style={{
+                fontFamily: 'var(--font-headline)',
+                borderTop: '0.5px solid var(--color-border)',
+                color: isSobreActive ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
+              }}
+              onClick={() => { setActiveView({ mode: 'sobre' }); setSidebarOpen(false); }}
+            >
+              Sobre EgoDe
+            </button>
           </div>
 
           {/* Icones — absolutes, sempre a 24px de baix */}
