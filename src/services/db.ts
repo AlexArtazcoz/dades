@@ -133,6 +133,21 @@ export async function initializeDatabase(): Promise<void> {
 
 export const db = new DadesDB();
 
+// === Avisador d'escriptures ===
+// La còpia automàtica s'hi subscriu per pujar els canvis poc després
+// d'editar, en lloc d'esperar el proper interval.
+
+const dataWrittenListeners = new Set<() => void>();
+
+export function onDataWritten(listener: () => void): () => void {
+  dataWrittenListeners.add(listener);
+  return () => dataWrittenListeners.delete(listener);
+}
+
+function notifyDataWritten(): void {
+  for (const listener of dataWrittenListeners) listener();
+}
+
 // === Operacions de Sector ===
 
 export async function getAllSectors(): Promise<Sector[]> {
@@ -141,6 +156,7 @@ export async function getAllSectors(): Promise<Sector[]> {
 
 export async function saveSector(sector: Sector): Promise<void> {
   await db.sectors.put(sector);
+  notifyDataWritten();
 }
 
 export async function deleteSector(id: string): Promise<void> {
@@ -153,6 +169,7 @@ export async function deleteSector(id: string): Promise<void> {
     }
     await db.sectors.delete(id);
   });
+  notifyDataWritten();
 }
 
 // === Operacions de Repositori ===
@@ -167,6 +184,7 @@ export async function getRepositori(id: string): Promise<Repositori | undefined>
 
 export async function saveRepositori(repositori: Repositori): Promise<void> {
   await db.repositoris.put(repositori);
+  notifyDataWritten();
 }
 
 export async function deleteRepositori(id: string): Promise<void> {
@@ -175,6 +193,7 @@ export async function deleteRepositori(id: string): Promise<void> {
     await db.referencies.where('repositoriId').equals(id).delete();
     await db.repositoris.delete(id);
   });
+  notifyDataWritten();
 }
 
 // === Operacions de Referència ===
@@ -195,10 +214,12 @@ export async function getReferencia(id: string): Promise<Referencia | undefined>
 
 export async function saveReferencia(referencia: Referencia): Promise<void> {
   await db.referencies.put(referencia);
+  notifyDataWritten();
 }
 
 export async function saveReferencies(referencies: Referencia[]): Promise<void> {
   await db.referencies.bulkPut(referencies);
+  notifyDataWritten();
 }
 
 export async function deleteReferencia(id: string): Promise<void> {
@@ -206,12 +227,14 @@ export async function deleteReferencia(id: string): Promise<void> {
     await db.attachments.where('referenciaId').equals(id).delete();
     await db.referencies.delete(id);
   });
+  notifyDataWritten();
 }
 
 // === Operacions d'Adjunt ===
 
 export async function saveAttachment(attachment: Attachment): Promise<void> {
   await db.attachments.put(attachment);
+  notifyDataWritten();
 }
 
 // La galeria carrega els adjunts de la vista activa: tots, els d'un grapat
@@ -234,11 +257,13 @@ export async function getAttachmentsForReferencia(referenciaId: string): Promise
 
 export async function deleteAttachment(id: string): Promise<void> {
   await db.attachments.delete(id);
+  notifyDataWritten();
 }
 
 // Only touches the name — the blob is left untouched in IndexedDB.
 export async function renameAttachment(id: string, name: string): Promise<void> {
   await db.attachments.update(id, { name });
+  notifyDataWritten();
 }
 
 // === Export / Import ===
