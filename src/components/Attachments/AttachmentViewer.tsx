@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Download, ExternalLink, Trash2, X } from 'lucide-react';
 import {
   canRenderPdf,
+  isVideoAttachment,
   downloadAttachment,
   formatBytes,
   isImageAttachment,
@@ -83,6 +84,7 @@ function ViewerBody({
 
   const url = useAttachmentUrl(current);
   const isImage = isImageAttachment(current);
+  const isVideo = isVideoAttachment(current);
 
   const go = useCallback(
     (delta: number) => {
@@ -200,7 +202,18 @@ function ViewerBody({
           </button>
         )}
 
-        {isImage ? (
+        {isVideo ? (
+          url && (
+            <video
+              className="att-viewer-frame"
+              src={url}
+              controls
+              autoPlay
+              playsInline
+              style={{ background: '#000' }}
+            />
+          )
+        ) : isImage ? (
           <div
             className={`att-viewer-imgwrap ${zoomed ? 'is-zoomed' : ''}`}
             onClick={() => setZoomed(z => !z)}
@@ -270,7 +283,8 @@ function StripItem({
   onClick: () => void;
 }) {
   const isImage = isImageAttachment(attachment);
-  const url = useAttachmentUrl(isImage ? attachment : null);
+  const isVideo = isVideoAttachment(attachment);
+  const url = useAttachmentUrl(isImage || isVideo ? attachment : null);
 
   return (
     <button

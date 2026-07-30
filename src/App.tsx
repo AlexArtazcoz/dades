@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { LeftBar } from './components/LeftBar';
 import { Sidebar } from './components/Sidebar';
 import { Gallery } from './components/Gallery';
-import { Sobre } from './components/Sobre';
 import { SettingsModal } from './components/SettingsModal';
 import { ToastContainer } from './components/ToastContainer';
 import { useDadesStore } from './stores/dadesStore';
@@ -11,7 +10,7 @@ import { getAllSectors, initializeDatabase } from './services/db';
 import { hasBackupConfig, restoreFromGitHub, startAutoBackup, syncWithRemote } from './services/backup';
 
 function App() {
-  const { loadAll, loadPublic, sectors, isLoading, readOnly, activeView } = useDadesStore();
+  const { loadAll, loadPublic, sectors, isLoading, readOnly } = useDadesStore();
   const { addToast, sidebarOpen, setSidebarOpen } = useUIStore();
   const [restoring, setRestoring] = useState(false);
   const [dbInitialized, setDbInitialized] = useState(false);
@@ -142,16 +141,13 @@ function App() {
       <SettingsModal />
       <ToastContainer />
 
-      {/* La pàgina «Sobre» és una vista més; si no, la galeria */}
-      {activeView.mode === 'sobre'
-        ? <Sobre />
-        : sectors.length > 0 && <Gallery />}
+      {sectors.length > 0 && <Gallery />}
 
       {/* Base buida: benvinguda + restauració si hi ha còpia configurada */}
-      {sectors.length === 0 && !sidebarOpen && activeView.mode !== 'sobre' && (
+      {sectors.length === 0 && !sidebarOpen && (
         <div className="fixed inset-0 z-20 flex items-center justify-center px-6 pointer-events-none" style={{ paddingLeft: 110 }}>
           <div className="pointer-events-auto w-full max-w-[400px] text-center text-[var(--color-black)]">
-            <h1 className="text-2xl font-semibold tracking-tight mb-2">EgoDe</h1>
+            <h1 className="text-2xl font-semibold tracking-tight mb-2">goDe</h1>
             <p className="text-sm leading-relaxed text-[var(--color-text-muted)] mb-5">
               {readOnly
                 ? 'Encara no hi ha res publicat.'

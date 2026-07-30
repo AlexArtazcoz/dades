@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Sector, Repositori, Referencia, Attachment } from '../types';
 import * as db from '../services/db';
 import type { ActiveView } from '../services/db';
-import { isAcceptedFile, MAX_FILE_BYTES } from '../constants';
+import { isAcceptedFile, maxBytesFor } from '../constants';
 import { loadPublicArxiu } from '../services/arxiu';
 
 interface DadesState {
@@ -353,7 +353,7 @@ export const useDadesStore = create<DadesState>()(
     },
 
     addAttachment: async (referenciaId: string, file: File) => {
-      if (!isAcceptedFile(file) || file.size > MAX_FILE_BYTES) return null;
+      if (!isAcceptedFile(file) || file.size > maxBytesFor(file)) return null;
       const referencia = get().referencies.find(r => r.id === referenciaId);
       if (!referencia) return null;
 
@@ -382,7 +382,7 @@ export const useDadesStore = create<DadesState>()(
       const rejected: string[] = [];
       let created = 0;
       for (const file of files) {
-        if (!isAcceptedFile(file) || file.size > MAX_FILE_BYTES) {
+        if (!isAcceptedFile(file) || file.size > maxBytesFor(file)) {
           rejected.push(file.name || 'fitxer');
           continue;
         }

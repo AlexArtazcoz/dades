@@ -442,7 +442,6 @@ const ACTIVE_VIEW_STORAGE_KEY = 'dades_active_view';
 // La vista del llenç: tota la base, un sector sencer o un repositori concret
 export type ActiveView =
   | { mode: 'tot' }
-  | { mode: 'sobre' }              // la pàgina que explica què és això
   | { mode: 'sector'; id: string }
   | { mode: 'repositori'; id: string };
 
@@ -451,7 +450,7 @@ export function getStoredActiveView(): ActiveView | null {
     const raw = localStorage.getItem(ACTIVE_VIEW_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as ActiveView;
-    if (parsed.mode === 'tot' || parsed.mode === 'sobre') return parsed;
+    if (parsed.mode === 'tot') return parsed;
     if ((parsed.mode === 'sector' || parsed.mode === 'repositori') && typeof parsed.id === 'string') {
       return parsed;
     }

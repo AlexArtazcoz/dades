@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, Star, Trash2, X } from 'lucide-react';
-import { isImageAttachment, useAttachmentUrl } from '../Attachments/attachmentUtils';
+import { isImageAttachment, isVideoAttachment, useAttachmentUrl } from '../Attachments/attachmentUtils';
 import { useDadesStore } from '../../stores/dadesStore';
 import { useUIStore } from '../../stores/uiStore';
-import { MAX_FILE_BYTES, isAcceptedFile } from '../../constants';
+import { ACCEPT_ATTR, isAcceptedFile, maxBytesFor } from '../../constants';
 import type { Attachment, Referencia } from '../../types';
 
 /* La fitxa d'edició d'una referència. Títol, enllaç, nota i etiquetes es
@@ -35,7 +35,8 @@ function Thumb({
   onDelete: () => void;
 }) {
   const isImage = isImageAttachment(attachment);
-  const url = useAttachmentUrl(isImage ? attachment : null);
+  const isVideo = isVideoAttachment(attachment);
+  const url = useAttachmentUrl(isImage || isVideo ? attachment : null);
   const [confirming, setConfirming] = useState(false);
 
   return (
@@ -48,7 +49,9 @@ function Thumb({
       }}
       title={attachment.name}
     >
-      {url ? (
+      {isVideo && url ? (
+        <video src={`${url}#t=0.1`} className="w-full h-full object-cover" preload="metadata" muted playsInline />
+      ) : url ? (
         <img src={url} alt={attachment.name} className="w-full h-full object-cover" draggable={false} />
       ) : (
         <div className="w-full h-full flex items-center justify-center text-[10px] font-semibold text-black/40">
@@ -158,8 +161,8 @@ export function ReferenciaModal({
   const handleAddFiles = async (files: File[]) => {
     let added = 0;
     for (const file of files) {
-      if (!isAcceptedFile(file) || file.size > MAX_FILE_BYTES) {
-        addToast({ type: 'warning', message: `«${file.name}» rebutjat (només imatges/PDF fins a 20 MB)` });
+      if (!isAcceptedFile(file) || file.size > maxBytesFor(file)) {
+        addToast({ type: 'warning', message: `«${file.name}» rebutjat (imatges i PDF fins a 20 MB, vídeo fins a 60 MB)` });
         continue;
       }
       if (await addAttachment(referencia.id, file)) added++;
@@ -303,7 +306,7 @@ export function ReferenciaModal({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,application/pdf"
+              accept={ACCEPT_ATTR}
               multiple
               className="hidden"
               onChange={async e => {

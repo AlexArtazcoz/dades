@@ -12,6 +12,10 @@ export function isImageAttachment(a: Attachment): boolean {
   return a.mimeType.startsWith('image/');
 }
 
+export function isVideoAttachment(a: Attachment): boolean {
+  return a.mimeType.startsWith('video/');
+}
+
 /* Chrome/Safari/Firefox render PDFs in an iframe; anything else gets the
    download fallback instead of an empty frame. */
 export const canRenderPdf =

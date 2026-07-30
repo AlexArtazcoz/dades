@@ -271,8 +271,8 @@ async function doBackup(reason: 'auto' | 'manual', retried = false): Promise<Bac
       await gh(`/repos/${cfg.repo}/contents/README.md`, {
         method: 'PUT',
         body: JSON.stringify({
-          message: 'Inicialitza el repositori de còpies d\'EgoDe',
-          content: btoa('# Copies de seguretat d\'EgoDe\n\nGenerat automaticament. No editar a ma.\n'),
+          message: 'Inicialitza el repositori de còpies de goDe',
+          content: btoa('# Copies de seguretat de goDe\n\nGenerat automaticament. No editar a ma.\n'),
           branch,
         }),
       });

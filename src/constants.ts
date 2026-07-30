@@ -9,15 +9,28 @@ const VIEWPORT_W =
 
 export const LEFTBAR_W = VIEWPORT_W <= 640 ? 72 : 110;
 
-/* Ingesta de fitxers — mateix límit que SceneScript. S'accepten imatges
-   (qualsevol image/*) i PDFs. */
+/* Ingesta de fitxers: imatges, PDFs i vídeo.
+   El vídeo té un límit més ampli perquè qualsevol clip decent passa de 20 MB;
+   per sobre d'això val més enllaçar-lo (YouTube/Vimeo), que no ocupa res. */
 export const MAX_FILE_BYTES = 20 * 1024 * 1024;
+export const MAX_VIDEO_BYTES = 60 * 1024 * 1024;
+
+export const ACCEPT_ATTR = 'image/*,application/pdf,video/*';
 
 export function isAcceptedFile(file: File): boolean {
-  return file.type.startsWith('image/') || file.type === 'application/pdf';
+  return (
+    file.type.startsWith('image/') ||
+    file.type === 'application/pdf' ||
+    file.type.startsWith('video/')
+  );
 }
 
-/* L'arxiu públic d'EgoDe. Va en un repositori a part del codi: així publicar
+// El límit que toca segons el tipus
+export function maxBytesFor(file: File): number {
+  return file.type.startsWith('video/') ? MAX_VIDEO_BYTES : MAX_FILE_BYTES;
+}
+
+/* L'arxiu públic de goDe. Va en un repositori a part del codi: així publicar
    no embruta la història del codi i les imatges viuen separades.
    Es serveix per GitHub Pages sota el mateix domini que l'app
    (alexartazcoz.github.io), o sigui mateix origen i cap problema de CORS. */

@@ -538,7 +538,6 @@ export function Sidebar() {
   };
 
   const isTotActive = activeView.mode === 'tot';
-  const isSobreActive = activeView.mode === 'sobre';
 
   return (
     <>
@@ -606,18 +605,22 @@ export function Sidebar() {
                 />
               ))
             )}
-            {/* Què és això — al final, després de l'arxiu */}
-            <button
-              className="block w-full text-left mt-8 pt-6 text-[13px] uppercase tracking-[0.1em] transition-colors"
-              style={{
-                fontFamily: 'var(--font-headline)',
-                borderTop: '0.5px solid var(--color-border)',
-                color: isSobreActive ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
-              }}
-              onClick={() => { setActiveView({ mode: 'sobre' }); setSidebarOpen(false); }}
-            >
-              Sobre EgoDe
-            </button>
+            {/* L'entrada del curador des d'un dispositiu nou: en mode lectura
+                l'engranatge no hi és i al mòbil no hi ha barra d'adreces per
+                escriure-hi #curador. Un visitant que hi cliqui només veurà el
+                formulari del token, que sense token no fa res. */}
+            {readOnly && (
+              <button
+                className="block w-full text-left mt-8 pt-6 text-[13px] uppercase tracking-[0.1em] text-[var(--color-text-muted)] hover:text-[var(--color-accent-text)] transition-colors"
+                style={{
+                  fontFamily: 'var(--font-headline)',
+                  borderTop: '0.5px solid var(--color-border)',
+                }}
+                onClick={() => { setSettingsModalOpen(true); setSidebarOpen(false); }}
+              >
+                Soc el curador
+              </button>
+            )}
           </div>
 
           {/* Icones — absolutes, sempre a 24px de baix */}

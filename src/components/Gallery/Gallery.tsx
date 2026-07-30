@@ -10,13 +10,18 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Link as LinkIcon, Pencil, Plus } from 'lucide-react';
+import { Link as LinkIcon, Pencil, Play, Plus } from 'lucide-react';
 import { AttachmentViewer } from '../Attachments/AttachmentViewer';
 import { ReferenciaModal } from './ReferenciaModal';
-import { isImageAttachment, useAttachmentUrl } from '../Attachments/attachmentUtils';
+import { AfegeixEnllacModal } from './AfegeixEnllacModal';
+import { EmbedViewer } from '../Attachments/EmbedViewer';
+import { isImageAttachment, isVideoAttachment, useAttachmentUrl } from '../Attachments/attachmentUtils';
 import { useDadesStore } from '../../stores/dadesStore';
 import { useUIStore } from '../../stores/uiStore';
 import { DEVICE_HAS_HOVER } from '../../utils/interaction';
+import { domainOf, looksLikeUrl, normalizeUrl, videoEmbedOf } from '../../utils/media';
+import type { VideoEmbed } from '../../utils/media';
+import { ACCEPT_ATTR } from '../../constants';
 import type { Attachment, Referencia } from '../../types';
 
 /* La galeria: graella masonry amb les referències de la vista activa.
@@ -25,13 +30,53 @@ import type { Attachment, Referencia } from '../../types';
    Dins d'un repositori les fitxes es reordenen arrossegant (dnd-kit); a les
    vistes sector/tot l'ordre és per updatedAt i no s'arrossega res. */
 
-function domainOf(url: string): string {
-  if (!url) return '';
-  try {
-    return new URL(url.includes('://') ? url : `https://${url}`).hostname.replace(/^www\./, '');
-  } catch {
-    return '';
-  }
+/* La pastilla de «play» que es posa a sobre de qualsevol portada
+   reproduïble: vídeo pujat o vídeo d'una plataforma. */
+function PlayBadge() {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <span
+        className="flex items-center justify-center rounded-full shadow-lg"
+        style={{ width: 46, height: 46, background: 'rgba(18,18,17,0.55)', backdropFilter: 'blur(2px)' }}
+      >
+        <Play size={20} fill="white" color="white" style={{ marginLeft: 2 }} />
+      </span>
+    </div>
+  );
+}
+
+/* La portada d'un vídeo enllaçat. La miniatura la serveix la plataforma i
+   pot fallar (sense xarxa, vídeo esborrat, o simplement que aquell vídeo no
+   tingui hqdefault): es prova la resolució següent i, si tampoc, es dibuixa
+   un bloc en el color de la casa. Mai una icona d'imatge trencada. */
+function EmbedThumb({ embed, alt }: { embed: VideoEmbed; alt: string }) {
+  const fallbacks = embed.thumbUrls ?? [];
+  const [i, setI] = useState(0);
+  const src = fallbacks[i];
+
+  return (
+    <div className="relative">
+      {src ? (
+        <img
+          src={src}
+          alt={alt}
+          className="w-full block"
+          draggable={false}
+          loading="lazy"
+          // YouTube serveix la miniatura sense mirar qui la demana; enviar-hi
+          // el referer no cal i en alguns entorns fa que la rebutgi
+          referrerPolicy="no-referrer"
+          onError={() => setI(n => n + 1)}
+        />
+      ) : (
+        <div
+          className="w-full aspect-video"
+          style={{ background: 'var(--color-accent-soft)' }}
+        />
+      )}
+      <PlayBadge />
+    </div>
+  );
 }
 
 // Els adjunts d'una referència en ordre de visor: portada primer, resta per antiguitat
@@ -68,8 +113,11 @@ function GalleryCard({
   });
 
   const isImage = cover ? isImageAttachment(cover) : false;
-  const url = useAttachmentUrl(cover && isImage ? cover : null);
+  const isVideo = cover ? isVideoAttachment(cover) : false;
+  const url = useAttachmentUrl(cover && (isImage || isVideo) ? cover : null);
   const domain = domainOf(referencia.url);
+  // Sense fitxers però amb un enllaç de vídeo: la portada és la de la plataforma
+  const embed = !cover ? videoEmbedOf(referencia.url) : null;
   const caption = referencia.title || domain || (cover ? cover.name : 'Sense títol');
 
   const style: React.CSSProperties = {
@@ -115,6 +163,26 @@ function GalleryCard({
     >
       {cover && isImage ? (
         url && <img src={url} alt={caption} className="w-full block" draggable={false} />
+      ) : cover && isVideo ? (
+        /* Vídeo pujat: el navegador pinta el primer fotograma amb #t=0.1 */
+        <div className="relative">
+          {url && (
+            <video
+              src={`${url}#t=0.1`}
+              className="w-full block"
+              preload="metadata"
+              muted
+              playsInline
+            />
+          )}
+          <PlayBadge />
+        </div>
+      ) : embed ? (
+        /* Vídeo enllaçat (YouTube/Vimeo): la miniatura ve de la font */
+        <>
+          <EmbedThumb embed={embed} alt={caption} />
+          {inkFooter}
+        </>
       ) : cover ? (
         /* Adjunt que no és imatge (PDF): bloc amb etiqueta */
         <>
@@ -229,6 +297,8 @@ export function Gallery() {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [addingLink, setAddingLink] = useState(false);
+  const [playing, setPlaying] = useState<Referencia | null>(null);
   // Comptador enter/leave: el dragleave salta a cada fill que es travessa
   const [dragDepth, setDragDepth] = useState(0);
 
@@ -255,10 +325,10 @@ export function Gallery() {
     const cover = coverOf(referencia);
     if (cover) {
       setViewerIndex(viewerList.findIndex(a => a.id === cover.id));
+    } else if (videoEmbedOf(referencia.url)) {
+      setPlaying(referencia);        // YouTube/Vimeo: es mira sense sortir
     } else if (referencia.url) {
-      // Fitxa només d'enllaç: obre la font
-      const href = referencia.url.includes('://') ? referencia.url : `https://${referencia.url}`;
-      window.open(href, '_blank', 'noopener,noreferrer');
+      window.open(normalizeUrl(referencia.url), '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -283,7 +353,7 @@ export function Gallery() {
     if (rejected.length > 0) {
       addToast({
         type: 'warning',
-        message: `Rebutjat${rejected.length === 1 ? '' : 's'}: ${rejected.join(', ')} (només imatges/PDF fins a 20 MB)`,
+        message: `Rebutjat${rejected.length === 1 ? '' : 's'}: ${rejected.join(', ')} (imatges i PDF fins a 20 MB, vídeo fins a 60 MB)`,
       });
     }
   };
@@ -329,8 +399,7 @@ export function Gallery() {
         return;
       }
       const text = e.clipboardData?.getData('text')?.trim() ?? '';
-      const looksLikeUrl = /^(https?:\/\/\S+|www\.\S+|[\w-]+(\.[\w-]+)+(\/\S*)?)$/i.test(text);
-      if (looksLikeUrl) {
+      if (looksLikeUrl(text)) {
         e.preventDefault();
         createReferencia(repoId, { url: text }).then(() => {
           addToast({ type: 'success', message: `Enllaç afegit (${domainOf(text) || text})` });
@@ -374,7 +443,7 @@ export function Gallery() {
         <p className="text-[var(--color-black)] text-sm font-medium">
           Deixa anar per afegir a «{activeRepositori.name}»
         </p>
-        <p className="text-[var(--color-text-muted)] text-[11px] mt-1">Imatges i PDFs, fins a 20 MB</p>
+        <p className="text-[var(--color-text-muted)] text-[11px] mt-1">Imatges, vídeos i PDFs</p>
       </div>
     </div>
   );
@@ -383,7 +452,7 @@ export function Gallery() {
     <input
       ref={ingestInputRef}
       type="file"
-      accept="image/*,application/pdf"
+      accept={ACCEPT_ATTR}
       multiple
       className="hidden"
       onChange={async e => {
@@ -402,17 +471,26 @@ export function Gallery() {
             {isRepositoriView
               ? (readOnly
                   ? 'Aquest repositori encara no té res.'
-                  : 'Aquest repositori encara és buit. Arrossega-hi imatges o PDFs, enganxa\'ls amb Cmd+V (també un enllaç), o toca el botó.')
+                  : 'Aquest repositori encara és buit. Afegeix-hi imatges, vídeos, PDFs o enllaços.')
               : 'Encara no hi ha cap referència en aquesta vista.'}
           </p>
           {isRepositoriView && !readOnly && (
-            <button
-              onClick={() => ingestInputRef.current?.click()}
-              className="mt-4 text-sm text-black/50 hover:text-black/80 transition-colors px-4 py-2 rounded-lg"
-              style={{ border: '1px dashed #D0D0D0' }}
-            >
-              + Afegeix imatges o PDFs
-            </button>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <button
+                onClick={() => ingestInputRef.current?.click()}
+                className="text-sm text-black/50 hover:text-black/80 transition-colors px-4 py-2 rounded-lg"
+                style={{ border: '1px dashed #D0D0D0' }}
+              >
+                + Imatges, PDFs o vídeos
+              </button>
+              <button
+                onClick={() => setAddingLink(true)}
+                className="text-sm text-black/50 hover:text-black/80 transition-colors px-4 py-2 rounded-lg"
+                style={{ border: '1px dashed #D0D0D0' }}
+              >
+                + Enllaç o YouTube
+              </button>
+            </div>
           )}
         </div>
         {addFilesInput}
@@ -458,14 +536,26 @@ export function Gallery() {
           cards
         )}
         {isRepositoriView && !readOnly && (
-          <button
-            onClick={() => ingestInputRef.current?.click()}
-            className="flex items-center justify-center rounded-lg text-black/30 hover:text-black/60 transition-colors"
-            style={{ minHeight: 132, border: '1px dashed #D0D0D0' }}
-            title="Afegeix imatges o PDFs"
-          >
-            <Plus size={22} />
-          </button>
+          <div className="gallery-card flex flex-col gap-2">
+            <button
+              onClick={() => ingestInputRef.current?.click()}
+              className="flex flex-col items-center justify-center gap-1 rounded-lg text-black/30 hover:text-black/60 transition-colors w-full"
+              style={{ minHeight: 96, border: '1px dashed #D0D0D0' }}
+              title="Afegeix imatges, PDFs o vídeos"
+            >
+              <Plus size={22} />
+              <span className="text-[10px] uppercase tracking-wider">Fitxers</span>
+            </button>
+            <button
+              onClick={() => setAddingLink(true)}
+              className="flex flex-col items-center justify-center gap-1 rounded-lg text-black/30 hover:text-black/60 transition-colors w-full"
+              style={{ minHeight: 64, border: '1px dashed #D0D0D0' }}
+              title="Afegeix un enllaç o un vídeo de YouTube"
+            >
+              <LinkIcon size={18} />
+              <span className="text-[10px] uppercase tracking-wider">Enllaç</span>
+            </button>
+          </div>
         )}
         {addFilesInput}
       </div>
@@ -479,6 +569,32 @@ export function Gallery() {
           onClose={() => setViewerIndex(null)}
           onRename={readOnly ? undefined : (id, name) => renameAttachment(id, name)}
           onDelete={readOnly ? undefined : id => deleteAttachment(id)}
+        />
+      )}
+
+      {/* Vídeo enllaçat: reproductor a pantalla completa */}
+      {playing && videoEmbedOf(playing.url) && (
+        <EmbedViewer
+          embed={videoEmbedOf(playing.url)!}
+          title={playing.title || domainOf(playing.url)}
+          sourceUrl={normalizeUrl(playing.url)}
+          onClose={() => setPlaying(null)}
+        />
+      )}
+
+      {/* Nou enllaç (web o vídeo d'una plataforma) */}
+      {addingLink && repoId && (
+        <AfegeixEnllacModal
+          onClose={() => setAddingLink(false)}
+          onSave={async (url, title) => {
+            setAddingLink(false);
+            await createReferencia(repoId, { url, title });
+            const embed = videoEmbedOf(url);
+            addToast({
+              type: 'success',
+              message: embed ? `Vídeo de ${embed.provider} afegit` : `Enllaç afegit (${domainOf(url) || url})`,
+            });
+          }}
         />
       )}
 

@@ -22,7 +22,6 @@ export function LeftBar() {
     : undefined;
   const title =
     activeView.mode === 'tot' ? 'Tot'
-    : activeView.mode === 'sobre' ? 'Sobre'
     : repositori?.name ?? sector?.name ?? '';
   const subtitle = repositori ? sector?.name ?? '' : '';
 

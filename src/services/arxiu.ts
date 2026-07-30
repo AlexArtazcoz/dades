@@ -3,7 +3,7 @@ import { gh, bytesToBase64, gitBlobSha, hasBackupConfig } from './backup';
 import { getAllSectors, getAllRepositoris, getAllReferencies, getAllAttachments } from './db';
 import type { Attachment, Referencia, Repositori, Sector } from '../types';
 
-/* L'arxiu públic d'EgoDe.
+/* L'arxiu públic de goDe.
 
    Publicar: escriu el dataset curat (data.json + imatges redimensionades) al
    repositori públic amb la Git Data API, igual que la còpia de seguretat però
@@ -49,16 +49,31 @@ export interface PublishResult {
 
 // === Publicar ===
 
+/* L'extensió que ha de tenir el fitxer publicat: Pages tria el Content-Type
+   segons l'extensió, i un vídeo servit com a application/octet-stream no es
+   reprodueix al navegador. */
+function extensionFor(mime: string, name: string): string {
+  if (mime === 'application/pdf') return 'pdf';
+  const known: Record<string, string> = {
+    'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm',
+    'video/x-matroska': 'mkv', 'video/x-msvideo': 'avi', 'video/mpeg': 'mpeg',
+  };
+  if (known[mime]) return known[mime];
+  const fromName = name.includes('.') ? name.split('.').pop()!.toLowerCase() : '';
+  return /^[a-z0-9]{1,5}$/.test(fromName) ? fromName : 'bin';
+}
+
 /* Redueix una imatge al costat llarg màxim i la torna en JPEG. Els PDFs i
-   qualsevol cosa que no sigui imatge passen tal qual. */
+   els vídeos passen tal qual. */
 async function shrink(attachment: Attachment): Promise<{ bytes: Uint8Array; ext: string; mime: string }> {
   const blob = attachment.blob;
   if (!blob) throw new Error(`L'adjunt ${attachment.name} no té contingut`);
 
   if (!attachment.mimeType.startsWith('image/')) {
+    // Vídeo i PDF viatgen sencers: el canvas només sap reduir imatges
     return {
       bytes: new Uint8Array(await blob.arrayBuffer()),
-      ext: attachment.mimeType === 'application/pdf' ? 'pdf' : 'bin',
+      ext: extensionFor(attachment.mimeType, attachment.name),
       mime: attachment.mimeType,
     };
   }
@@ -159,8 +174,8 @@ export async function publishArxiu(
   const indexPath = 'index.html';
   if (!existing.has(indexPath)) {
     const html = new TextEncoder().encode(
-      '<!doctype html><meta charset="utf-8"><title>Arxiu EgoDe</title>' +
-      '<p>Dades de l\'arxiu EgoDe. L\'app és a <a href="../dades/">/dades</a>.</p>\n',
+      '<!doctype html><meta charset="utf-8"><title>Arxiu goDe</title>' +
+      '<p>Dades de l\'arxiu goDe. L\'app és a <a href="../dades/">/dades</a>.</p>\n',
     );
     const b = await gh<{ sha: string }>(`/repos/${ARXIU_REPO}/git/blobs`, {
       method: 'POST',
