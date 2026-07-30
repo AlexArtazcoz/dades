@@ -29,7 +29,7 @@ const labelStyle: React.CSSProperties = {
 };
 
 export function SettingsModal() {
-  const { loadAll } = useDadesStore();
+  const { loadAll, readOnly } = useDadesStore();
   const { settingsModalOpen, setSettingsModalOpen, addToast } = useUIStore();
 
   // Còpia de seguretat al GitHub
@@ -94,6 +94,13 @@ export function SettingsModal() {
     setBackupBusy('restore');
     try {
       const { repositorisImported, referenciesImported } = await restoreFromGitHub();
+      // Des del mode lectura (mòbil acabat de configurar): la restauració ja
+      // és a IndexedDB; en recarregar, l'app arrenca com a curador amb les
+      // còpies automàtiques i la sincronització engegades.
+      if (readOnly) {
+        window.location.reload();
+        return;
+      }
       await loadAll();
       addToast({
         type: 'success',
@@ -260,6 +267,7 @@ export function SettingsModal() {
             </span>
 
             <div style={{ display: 'flex', gap: 8 }}>
+              {!readOnly && (
               <button
                 onClick={handleBackupNow}
                 disabled={backupBusy !== null || !hasBackupConfig()}
@@ -274,6 +282,7 @@ export function SettingsModal() {
                 {backupBusy === 'backup' && <Loader2 size={13} className="animate-spin" />}
                 Fes còpia ara
               </button>
+              )}
               <button
                 onClick={handleRestore}
                 disabled={backupBusy !== null || !hasBackupConfig()}
@@ -295,7 +304,10 @@ export function SettingsModal() {
           </div>
         </div>
 
-        {/* Publicar l'arxiu — el que veu tothom qui entra sense token */}
+        {/* Publicar l'arxiu — el que veu tothom qui entra sense token.
+            En mode lectura la base local és BUIDA: publicar o exportar des
+            d'aquí xafaria l'arxiu bo amb no-res. Només queda Restaura. */}
+        {!readOnly && (
         <div style={{ borderTop: '0.5px solid var(--color-border)', paddingTop: 16 }}>
           <span style={{ ...labelStyle, marginBottom: 10 }}>Arxiu públic</span>
           <p style={{ fontSize: 10, lineHeight: 1.5, color: 'rgba(0,0,0,0.35)', margin: '0 0 10px' }}>
@@ -325,8 +337,10 @@ export function SettingsModal() {
             Veure l'arxiu publicat ↗
           </a>
         </div>
+        )}
 
         {/* Còpia en un fitxer — abans al menú del boli de la barra esquerra */}
+        {!readOnly && (
         <div style={{ borderTop: '0.5px solid var(--color-border)', paddingTop: 16 }}>
           <span style={{ ...labelStyle, marginBottom: 10 }}>Fitxer</span>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -355,6 +369,7 @@ export function SettingsModal() {
             </button>
           </div>
         </div>
+        )}
 
         <button
           onClick={() => setSettingsModalOpen(false)}

@@ -1,4 +1,5 @@
 import { useDadesStore } from '../stores/dadesStore';
+import { useUIStore } from '../stores/uiStore';
 
 /* La pàgina que explica què és això. És una vista més de l'arxiu, no una
    finestra emergent: es navega igual que un sector i la barra n'ensenya el
@@ -29,9 +30,16 @@ function Bloc({ titol, children }: { titol: string; children: React.ReactNode })
 
 export function Sobre() {
   const { sectors, repositoris, referencies, readOnly } = useDadesStore();
+  const { sidebarOpen, sidebarClosing, setSettingsModalOpen } = useUIStore();
+
+  // El foli es desplaça amb el calaix, com la galeria — sense això el menú
+  // passava per sobre del text
+  const sheetClass = `gallery-sheet${sidebarOpen ? ' sidebar-open' : ''}${
+    sidebarClosing ? ' sidebar-closing' : ''
+  }`;
 
   return (
-    <main className="gallery-sheet">
+    <main className={sheetClass}>
       <div className="mx-auto" style={{ maxWidth: 560, paddingTop: 8, paddingBottom: 64 }}>
 
         {/* Sense uppercase: en majúscules el nom perd la D d'«ego death» */}
@@ -102,6 +110,19 @@ export function Sobre() {
             {repositoris.length} repositori{repositoris.length === 1 ? '' : 's'} ·{' '}
             {sectors.length} sector{sectors.length === 1 ? '' : 's'}
           </p>
+        )}
+
+        {/* L'entrada del curador des d'un dispositiu nou (el mòbil no té
+            barra d'adreces per posar-hi #curador). Un visitant que hi cliqui
+            només veurà el formulari del token: sense token no passa res. */}
+        {readOnly && (
+          <button
+            onClick={() => setSettingsModalOpen(true)}
+            className="mt-6 text-[11px] uppercase tracking-[0.12em] text-[var(--color-text-muted)] hover:text-[var(--color-accent-text)] transition-colors"
+            style={{ fontFamily: 'var(--font-headline)' }}
+          >
+            Soc el curador
+          </button>
         )}
       </div>
     </main>
