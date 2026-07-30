@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -10,7 +10,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Link as LinkIcon, Pencil } from 'lucide-react';
+import { Link as LinkIcon, Pencil, Plus } from 'lucide-react';
 import { AttachmentViewer } from '../Attachments/AttachmentViewer';
 import { ReferenciaModal } from './ReferenciaModal';
 import { isImageAttachment, useAttachmentUrl } from '../Attachments/attachmentUtils';
@@ -271,6 +271,9 @@ export function Gallery() {
 
   // === Ingesta: fitxers deixats anar o enganxats a la vista de repositori ===
 
+  // Al mòbil no hi ha arrossegar ni Cmd+V: el selector de fitxers fa la mateixa feina
+  const ingestInputRef = useRef<HTMLInputElement>(null);
+
   const handleIngest = async (files: File[]) => {
     if (!repoId || files.length === 0) return;
     const { created, rejected } = await ingestFiles(repoId, files);
@@ -376,16 +379,43 @@ export function Gallery() {
     </div>
   );
 
+  const addFilesInput = isRepositoriView && !readOnly && (
+    <input
+      ref={ingestInputRef}
+      type="file"
+      accept="image/*,application/pdf"
+      multiple
+      className="hidden"
+      onChange={async e => {
+        const files = [...(e.target.files ?? [])];
+        e.target.value = '';
+        await handleIngest(files);
+      }}
+    />
+  );
+
   if (repositoris.length > 0 && visibles.length === 0) {
     return (
       <main className={sheetClass + ' flex items-center justify-center'} {...dropHandlers}>
-        <p className="text-sm text-[var(--color-text-muted)] text-center max-w-[360px]">
-          {isRepositoriView
-            ? (readOnly
-                ? 'Aquest repositori encara no té res.'
-                : 'Aquest repositori encara és buit. Arrossega-hi imatges o PDFs, o enganxa\'ls amb Cmd+V (també un enllaç).')
-            : 'Encara no hi ha cap referència en aquesta vista.'}
-        </p>
+        <div className="text-center max-w-[360px]">
+          <p className="text-sm text-[var(--color-text-muted)]">
+            {isRepositoriView
+              ? (readOnly
+                  ? 'Aquest repositori encara no té res.'
+                  : 'Aquest repositori encara és buit. Arrossega-hi imatges o PDFs, enganxa\'ls amb Cmd+V (també un enllaç), o toca el botó.')
+              : 'Encara no hi ha cap referència en aquesta vista.'}
+          </p>
+          {isRepositoriView && !readOnly && (
+            <button
+              onClick={() => ingestInputRef.current?.click()}
+              className="mt-4 text-sm text-black/50 hover:text-black/80 transition-colors px-4 py-2 rounded-lg"
+              style={{ border: '1px dashed #D0D0D0' }}
+            >
+              + Afegeix imatges o PDFs
+            </button>
+          )}
+        </div>
+        {addFilesInput}
         {dragVeil}
       </main>
     );
@@ -427,6 +457,17 @@ export function Gallery() {
         ) : (
           cards
         )}
+        {isRepositoriView && !readOnly && (
+          <button
+            onClick={() => ingestInputRef.current?.click()}
+            className="flex items-center justify-center rounded-lg text-black/30 hover:text-black/60 transition-colors"
+            style={{ minHeight: 132, border: '1px dashed #D0D0D0' }}
+            title="Afegeix imatges o PDFs"
+          >
+            <Plus size={22} />
+          </button>
+        )}
+        {addFilesInput}
       </div>
 
       {/* Visor a pantalla completa — recorre tots els adjunts de la vista */}
